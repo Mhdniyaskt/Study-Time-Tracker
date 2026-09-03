@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Edit Session – Study Time Tracker</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 min-h-screen flex flex-col items-center py-16 px-4">
+
+  <!-- Header -->
+  <div class="text-center mb-10">
+    <h1 class="text-4xl font-bold text-indigo-600 mb-3">Study Time Tracker</h1>
+    <p class="text-gray-500 text-lg max-w-md mx-auto">Edit your study session below.</p>
+  </div>
+
+  <!-- Edit Form -->
+  <div class="w-full max-w-lg bg-white rounded-2xl shadow-md p-8">
+    <h2 class="text-xl font-semibold text-gray-700 mb-6">Edit Study Session</h2>
+
+    <%# ---- Validation error banner ---- %>
+    <% if (typeof formErrors !== 'undefined' && formErrors.length > 0) { %>
+      <div class="mb-5 rounded-lg border border-red-200 bg-red-50 p-3">
+        <p class="text-xs font-semibold text-red-700 mb-1">Please fix the following:</p>
+        <ul class="list-disc list-inside space-y-0.5">
+          <% formErrors.forEach(e => { %>
+            <li class="text-xs text-red-600"><%= e %></li>
+          <% }) %>
+        </ul>
+      </div>
+    <% } %>
+
+    <form method="POST" action="/study/<%= session._id %>/edit" id="editSessionForm" onsubmit="return validateEditSessionForm(event)">
+
+      <!-- Subject -->
+      <div class="mb-5">
+        <label for="subject" class="block text-sm font-medium text-gray-600 mb-1">Subject</label>
+        <%
+          const subjectVal   = (typeof formValues !== 'undefined' && formValues) ? formValues.subject : session.subject;
+          const subjectError = (typeof formErrors !== 'undefined') && formErrors.some(e => e.toLowerCase().includes('subject'));
+        %>
+        <input
+          type="text"
+          id="subject"
+          name="subject"
+          value="<%= subjectVal %>"
+          required
+          class="w-full border rounded-lg px-4 py-2.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:border-transparent transition
+                 <%= subjectError ? 'border-red-400 bg-red-50 focus:ring-red-400' : 'border-gray-300 focus:ring-indigo-400' %>"
+          oninput="clearValidationError('subject')"
+        />
+        <p id="subjectError" class="mt-1 text-xs text-red-500 hidden"></p>
+        <% if (subjectError) { %>
+          <p class="mt-1 text-xs text-red-500">Subject must be 2–50 characters.</p>
+        <% } %>
+      </div>
+
+      <!-- Hours & Minutes -->
+      <div class="flex gap-4 mb-6">
+        <div class="flex-1">
+          <label for="hours" class="block text-sm font-medium text-gray-600 mb-1">Hours</label>
+          <%
+            const hoursVal   = (typeof formValues !== 'undefined' && formValues) ? formValues.hours : hours;
+            const hoursError = (typeof formErrors !== 'undefined') && formErrors.some(e => e.toLowerCase().includes('hour'));
+          %>
+          <input
+            type="number"
+            id="hours"
+            name="hours"
+            min="0"
+            max="23"
+            value="<%= hoursVal %>"
+            class="w-full border rounded-lg px-4 py-2.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:border-transparent transition
+                   <%= hoursError ? 'border-red-400 bg-red-50 focus:ring-red-400' : 'border-gray-300 focus:ring-indigo-400' %>"
+            oninput="clearValidationError('hours')"
+          />
+          <p id="hoursError" class="mt-1 text-xs text-red-500 hidden"></p>
+        </div>
+        <div class="flex-1">
+          <label for="minutes" class="block text-sm font-medium text-gray-600 mb-1">Minutes</label>
+          <%
+            const minutesVal   = (typeof formValues !== 'undefined' && formValues) ? formValues.minutes : minutes;
+            const minutesError = (typeof formErrors !== 'undefined') && formErrors.some(e => e.toLowerCase().includes('minute'));
+          %>
+          <input
+            type="number"
+            id="minutes"
+            name="minutes"
+            min="0"
+            max="59"
+            value="<%= minutesVal %>"
+            class="w-full border rounded-lg px-4 py-2.5 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:border-transparent transition
+                   <%= minutesError ? 'border-red-400 bg-red-50 focus:ring-red-400' : 'border-gray-300 focus:ring-indigo-400' %>"
+            oninput="clearValidationError('minutes')"
+          />
+          <p id="minutesError" class="mt-1 text-xs text-red-500 hidden"></p>
+        </div>
+      </div>
+
+      <!-- Duration Error (for when both hours and minutes are 0) -->
+      <p id="durationError" class="mb-4 text-xs text-red-500 hidden"></p>
+
+      <% if (typeof formErrors !== 'undefined' && formErrors.some(e => e.toLowerCase().includes('duration'))) { %>
+        <p class="mb-4 text-xs text-red-500">Hours and minutes cannot both be 0.</p>
+      <% } %>
+
+      <!-- Actions -->
+      <div class="flex gap-3">
+        <button
+          type="submit"
+          class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 rounded-lg text-sm transition">
+          Save Changes
+        </button>
+        <a
+          href="/"
+          class="flex-1 text-center border border-gray-300 hover:bg-gray-50 text-gray-600 font-medium py-2.5 rounded-lg text-sm transition">
+          Cancel
+        </a>
+      </div>
+
+    </form>
+  </div>
+
+  <!-- Footer -->
+  <p class="mt-10 text-gray-400 text-sm">Study Time Tracker &copy; <%= new Date().getFullYear() %></p>
+
+  <!-- Client-side validation -->
+  <script>
+    // Client-side validation for Edit Session form
+    function validateEditSessionForm(event) {
+      let isValid = true;
+      
+      // Clear all previous errors
+      clearAllValidationErrors();
+      
+      // Get form values
+      const subject = document.getElementById('subject').value.trim();
+      const hours = parseInt(document.getElementById('hours').value) || 0;
+      const minutes = parseInt(document.getElementById('minutes').value) || 0;
+      
+      // Validate subject
+      if (!subject) {
+        showValidationError('subject', 'Subject cannot be empty.');
+        isValid = false;
+      } else if (subject.length < 2 || subject.length > 50) {
+        showValidationError('subject', 'Subject must be between 2 and 50 characters.');
+        isValid = false;
+      }
+      
+      // Validate hours
+      if (hours < 0) {
+        showValidationError('hours', 'Hours cannot be negative.');
+        isValid = false;
+      } else if (hours > 23) {
+        showValidationError('hours', 'Hours cannot exceed 23.');
+        isValid = false;
+      }
+      
+      // Validate minutes
+      if (minutes < 0) {
+        showValidationError('minutes', 'Minutes cannot be negative.');
+        isValid = false;
+      } else if (minutes > 59) {
+        showValidationError('minutes', 'Minutes must be between 0 and 59.');
+        isValid = false;
+      }
+      
+      // Validate total duration
+      if (hours === 0 && minutes === 0) {
+        showValidationError('duration', 'Study duration must be greater than 0.');
+        isValid = false;
+      }
+      
+      if (!isValid) {
+        event.preventDefault();
+        return false;
+      }
+      
+      return true;
+    }
+    
+    function showValidationError(fieldId, message) {
+      const errorElement = document.getElementById(fieldId + 'Error');
+      const inputElement = document.getElementById(fieldId === 'duration' ? 'hours' : fieldId);
+      
+      if (errorElement) {
+        errorElement.textContent = message;
+        errorElement.classList.remove('hidden');
+      }
+      
+      if (inputElement) {
+        inputElement.classList.remove('border-gray-300', 'focus:ring-indigo-400');
+        inputElement.classList.add('border-red-400', 'bg-red-50', 'focus:ring-red-400');
+      }
+      
+      // For duration error, also highlight minutes field
+      if (fieldId === 'duration') {
+        const minutesElement = document.getElementById('minutes');
+        if (minutesElement) {
+          minutesElement.classList.remove('border-gray-300', 'focus:ring-indigo-400');
+          minutesElement.classList.add('border-red-400', 'bg-red-50', 'focus:ring-red-400');
+        }
+      }
+    }
+    
+    function clearValidationError(fieldId) {
+      const errorElement = document.getElementById(fieldId + 'Error');
+      const inputElement = document.getElementById(fieldId);
+      
+      if (errorElement) {
+        errorElement.classList.add('hidden');
+      }
+      
+      if (inputElement) {
+        inputElement.classList.remove('border-red-400', 'bg-red-50', 'focus:ring-red-400');
+        inputElement.classList.add('border-gray-300', 'focus:ring-indigo-400');
+      }
+      
+      // Also clear duration error when hours or minutes change
+      if (fieldId === 'hours' || fieldId === 'minutes') {
+        const durationError = document.getElementById('durationError');
+        if (durationError) {
+          durationError.classList.add('hidden');
+        }
+        // Reset both fields' styling if they were marked as error for duration
+        ['hours', 'minutes'].forEach(id => {
+          const element = document.getElementById(id);
+          if (element && element.classList.contains('border-red-400')) {
+            element.classList.remove('border-red-400', 'bg-red-50', 'focus:ring-red-400');
+            element.classList.add('border-gray-300', 'focus:ring-indigo-400');
+          }
+        });
+      }
+    }
+    
+    function clearAllValidationErrors() {
+      ['subject', 'hours', 'minutes', 'duration'].forEach(clearValidationError);
+    }
+  </script>
+
+</body>
+</html>

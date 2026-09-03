@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Study Time Tracker</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body class="bg-gray-50 min-h-screen">
+
+  <!-- Compact Header -->
+  <header class="bg-white border-b border-gray-200 sticky top-0 z-10">
+    <div class="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
+      <div>
+        <h1 class="text-2xl font-bold text-indigo-600">Study Time Tracker</h1>
+        <p class="text-xs text-gray-500">Track your progress and stay consistent</p>
+      </div>
+      <div class="flex items-center gap-2">
+        <a
+          href="/statistics"
+          class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+          </svg>
+          Statistics
+        </a>
+        <a
+          href="/history"
+          class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6l4 2m6-2a10 10 0 11-20 0 10 10 0 0120 0z" />
+          </svg>
+          History
+        </a>
+        <button
+          onclick="document.getElementById('settingsModal').classList.toggle('hidden')"
+          class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z" />
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+          </svg>
+          Settings
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <div class="max-w-7xl mx-auto px-4 py-6 space-y-6">
+
+    <!-- Statistics Row -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+      
+      <!-- Today's Study -->
+      <div class="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+        <div class="flex items-center gap-3 mb-2">
+          <div class="bg-indigo-100 rounded-lg p-2">
+            <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6l4 2m6-2a10 10 0 11-20 0 10 10 0 0120 0z" />
+            </svg>
+          </div>
+          <span class="text-sm font-medium text-gray-600">Today's Study</span>
+        </div>
+        <div class="mb-2">
+          <% const todayHours = Math.floor(todayTotal / 60); %>
+          <% const todayMins = todayTotal % 60; %>
+          <p class="text-2xl font-bold text-gray-800">
+            <%= todayHours > 0 ? todayHours + 'h ' : '' %><%= todayMins + 'm' %>
+          </p>
+          <% const dgh = Math.floor(dailyGoal / 60); %>
+          <p class="text-xs text-gray-500">Goal: <%= dgh %>h</p>
+        </div>
+        <div class="w-full bg-gray-100 rounded-full h-1.5">
+          <div class="h-1.5 bg-indigo-500 rounded-full transition-all" style="width: <%= dailyProgress %>%"></div>
+        </div>
+      </div>
+
+      <!-- This Week -->
+      <div class="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+        <div class="flex items-center gap-3 mb-2">
+          <div class="bg-emerald-100 rounded-lg p-2">
+            <svg class="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
+            </svg>
+          </div>
+          <span class="text-sm font-medium text-gray-600">This Week</span>
+        </div>
+        <div class="mb-2">
+          <%
+            const wh = Math.floor(weeklyTotal / 60);
+            const wm = weeklyTotal % 60;
+            const goalH = Math.floor(weeklyGoal / 60);
+            const progressPct = Math.min(100, Math.round((weeklyTotal / weeklyGoal) * 100));
+          %>
+          <p class="text-2xl font-bold text-gray-800">
+            <%= wh > 0 ? wh + 'h ' : '' %><%= wm + 'm' %>
+          </p>
+          <p class="text-xs text-gray-500">Goal: <%= goalH %>h</p>
+        </div>
+        <div class="w-full bg-gray-100 rounded-full h-1.5">
+          <div class="h-1.5 bg-emerald-500 rounded-full transition-all" style="width: <%= progressPct %>%"></div>
+        </div>
+      </div>
+
+      <!-- This Month -->
+      <div class="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+        <div class="flex items-center gap-3 mb-2">
+          <div class="bg-sky-100 rounded-lg p-2">
+            <svg class="w-5 h-5 text-sky-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
+            </svg>
+          </div>
+          <span class="text-sm font-medium text-gray-600">This Month</span>
+        </div>
+        <div>
+          <%
+            const mh = Math.floor(monthlyTotal / 60);
+            const mm = monthlyTotal % 60;
+          %>
+          <p class="text-2xl font-bold text-gray-800">
+            <%= mh > 0 ? mh + 'h ' : '' %><%= mm + 'm' %>
+          </p>
+          <p class="text-xs text-gray-500"><%= monthlySessions %> <%= monthlySessions === 1 ? 'session' : 'sessions' %></p>
+        </div>
+      </div>
+
+      <!-- Overall Total -->
+      <div class="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+        <div class="flex items-center gap-3 mb-2">
+          <div class="bg-violet-100 rounded-lg p-2">
+            <svg class="w-5 h-5 text-violet-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zm6.75-9.75C9.75 2.754 10.254 2.25 10.875 2.25h2.25c.621 0 1.125.504 1.125 1.125v16.5c0 .621-.504 1.125-1.125 1.125h-2.25A1.125 1.125 0 019.75 19.875V3.375zm6.75 4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.625c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.25z" />
+            </svg>
+          </div>
+          <span class="text-sm font-medium text-gray-600">Overall Total</span>
+        </div>
+        <div>
+          <% const totalHours = Math.floor(totalStudyTime / 60); %>
+          <% const totalMins = totalStudyTime % 60; %>
+          <p class="text-2xl font-bold text-gray-800">
+            <%= totalHours > 0 ? totalHours + 'h ' : '' %><%= totalMins + 'm' %>
+          </p>
+          <p class="text-xs text-gray-500">All time</p>
+        </div>
+      </div>
+
+      <!-- Study Streak -->
+      <div class="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+        <div class="flex items-center gap-3 mb-2">
+          <div class="<%= currentStreak > 0 ? 'bg-orange-100' : 'bg-gray-100' %> rounded-lg p-2">
+            <span class="text-2xl">🔥</span>
+          </div>
+          <span class="text-sm font-medium text-gray-600">Study Streak</span>
+        </div>
+        <div>
+          <p class="text-2xl font-bold <%= currentStreak > 0 ? 'text-orange-600' : 'text-gray-400' %>">
+            <%= currentStreak %> <%= currentStreak === 1 ? 'day' : 'days' %>
+          </p>
+          <p class="text-xs text-gray-500">
+            <%= currentStreak > 0 ? 'Keep it up!' : 'Start today' %>
+          </p>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- 2-Column Layout -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      
+      <!-- LEFT: Add Study Session Form -->
+      <div class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+        <h2 class="text-lg font-semibold text-gray-700 mb-4">Add Study Session</h2>
+
+        <%# ---- Validation error banner ---- %>
+        <% if (typeof formErrors !== 'undefined' && formErrors.length > 0) { %>
+          <div class="mb-4 rounded-lg border border-red-200 bg-red-50 p-3">
+            <p class="text-xs font-semibold text-red-700 mb-1">Please fix the following:</p>
+            <ul class="list-disc list-inside space-y-0.5">
+              <% formErrors.forEach(e => { %>
+                <li class="text-xs text-red-600"><%= e %></li>
+              <% }) %>
+            </ul>
+          </div>
+        <% } %>
+
+        <form method="POST" action="/study" class="space-y-4" id="addSessionForm" onsubmit="return validateAddSessionForm(event)">
+          <!-- Subject -->
+          <div>
+            <label for="subject" class="block text-sm font-medium text-gray-600 mb-1">Subject</label>
+            <%
+              const subjectVal   = (typeof formValues !== 'undefined' && formValues) ? formValues.subject : '';
+              const subjectError = (typeof formErrors !== 'undefined') && formErrors.some(e => e.toLowerCase().includes('subject'));
+            %>
+            <input
+              type="text"
+              id="subject"
+              name="subject"
+              placeholder="e.g. Mathematics, History..."
+              value="<%= subjectVal %>"
+              required
+              class="w-full border rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:border-transparent transition
+                     <%= subjectError ? 'border-red-400 bg-red-50 focus:ring-red-400' : 'border-gray-300 focus:ring-indigo-400' %>"
+              oninput="clearValidationError('subject')"
+            />
+            <p id="subjectError" class="mt-1 text-xs text-red-500 hidden"></p>
+            <% if (subjectError) { %>
+              <p class="mt-1 text-xs text-red-500">Subject must be 2–50 characters.</p>
+            <% } %>
+          </div>
+
+          <!-- Hours & Minutes -->
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label for="hours" class="block text-sm font-medium text-gray-600 mb-1">Hours</label>
+              <%
+                const hoursVal   = (typeof formValues !== 'undefined' && formValues) ? formValues.hours : '';
+                const hoursError = (typeof formErrors !== 'undefined') && formErrors.some(e => e.toLowerCase().includes('hour'));
+              %>
+              <input
+                type="number"
+                id="hours"
+                name="hours"
+                min="0"
+                max="23"
+                placeholder="0"
+                value="<%= hoursVal %>"
+                class="w-full border rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:border-transparent transition
+                       <%= hoursError ? 'border-red-400 bg-red-50 focus:ring-red-400' : 'border-gray-300 focus:ring-indigo-400' %>"
+                oninput="clearValidationError('hours')"
+              />
+              <p id="hoursError" class="mt-1 text-xs text-red-500 hidden"></p>
+            </div>
+            <div>
+              <label for="minutes" class="block text-sm font-medium text-gray-600 mb-1">Minutes</label>
+              <%
+                const minutesVal   = (typeof formValues !== 'undefined' && formValues) ? formValues.minutes : '';
+                const minutesError = (typeof formErrors !== 'undefined') && formErrors.some(e => e.toLowerCase().includes('minute'));
+              %>
+              <input
+                type="number"
+                id="minutes"
+                name="minutes"
+                min="0"
+                max="59"
+                placeholder="0"
+                value="<%= minutesVal %>"
+                class="w-full border rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:border-transparent transition
+                       <%= minutesError ? 'border-red-400 bg-red-50 focus:ring-red-400' : 'border-gray-300 focus:ring-indigo-400' %>"
+                oninput="clearValidationError('minutes')"
+              />
+              <p id="minutesError" class="mt-1 text-xs text-red-500 hidden"></p>
+            </div>
+          </div>
+
+          <!-- Duration Error (for when both hours and minutes are 0) -->
+          <p id="durationError" class="text-xs text-red-500 hidden"></p>
+
+          <!-- Submit -->
+          <button
+            type="submit"
+            class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 rounded-lg text-sm transition">
+            Add Study Session
+          </button>
+        </form>
+      </div>
+
+      <!-- RIGHT: Study by Subject -->
+      <div class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+        <h2 class="text-lg font-semibold text-gray-700 mb-4">Study by Subject</h2>
+        
+        <% if (subjectStats.length > 0) { %>
+          <%
+            // Find the highest study time for progress bar calculation
+            const maxMinutes = subjectStats[0].totalMinutes;
+          %>
+          <div class="space-y-3">
+            <% subjectStats.forEach(stat => { %>
+              <%
+                const statHours = Math.floor(stat.totalMinutes / 60);
+                const statMins = stat.totalMinutes % 60;
+                const statTimeStr = (statHours > 0 ? statHours + 'h ' : '') + statMins + 'm';
+                const progressWidth = maxMinutes > 0 ? Math.round((stat.totalMinutes / maxMinutes) * 100) : 0;
+              %>
+              <div>
+                <div class="flex items-center justify-between mb-1.5">
+                  <span class="text-sm font-medium text-gray-700"><%= stat.subject %></span>
+                  <span class="text-sm font-semibold text-indigo-600"><%= statTimeStr %></span>
+                </div>
+                <div class="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
+                  <div
+                    class="h-2 bg-indigo-500 rounded-full transition-all duration-500"
+                    style="width: <%= progressWidth %>%">
+                  </div>
+                </div>
+              </div>
+            <% }) %>
+          </div>
+        <% } else { %>
+          <div class="text-center py-8 text-gray-400">
+            <svg class="w-12 h-12 mx-auto mb-2" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
+            </svg>
+            <p class="text-sm">No study data yet</p>
+          </div>
+        <% } %>
+      </div>
+
+    </div>
+
+    <!-- Weekly Study Chart -->
+    <div class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+      <h2 class="text-lg font-semibold text-gray-700 mb-4">Weekly Study Chart</h2>
+      <div class="w-full h-64 sm:h-80">
+        <canvas id="weeklyChart"></canvas>
+      </div>
+    </div>
+
+    <!-- Monthly Study Chart -->
+    <div class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+      <h2 class="text-lg font-semibold text-gray-700 mb-4">Monthly Study Chart</h2>
+      <div class="w-full h-64 sm:h-80">
+        <canvas id="monthlyChart"></canvas>
+      </div>
+    </div>
+
+    <!-- Study History -->
+    <div class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+      <h2 class="text-lg font-semibold text-gray-700 mb-4">Study History</h2>
+
+      <% if (groupedSessions.length === 0) { %>
+        <!-- Empty state -->
+        <div class="text-center py-12 text-gray-400">
+          <svg class="w-14 h-14 mx-auto mb-3" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6l4 2m6-2a10 10 0 11-20 0 10 10 0 0120 0z" />
+          </svg>
+          <p class="text-base">No study sessions yet</p>
+          <p class="text-sm mt-1">Add your first session above</p>
+        </div>
+      <% } else { %>
+        <div class="space-y-4">
+          <% groupedSessions.forEach(group => { %>
+            <%
+              const dh = Math.floor(group.total / 60);
+              const dm = group.total % 60;
+              const dailyTotalStr = (dh > 0 ? dh + 'h ' : '') + dm + 'm';
+            %>
+            <div class="border border-gray-200 rounded-lg overflow-hidden">
+
+              <!-- Date header -->
+              <div class="flex items-center justify-between px-4 py-2.5 bg-gray-50 border-b border-gray-200">
+                <span class="text-sm font-semibold text-gray-700"><%= group.label %></span>
+                <span class="text-xs font-medium text-indigo-600 bg-indigo-50 px-2 py-1 rounded">
+                  Total: <%= dailyTotalStr %>
+                </span>
+              </div>
+
+              <!-- Sessions for this day -->
+              <div class="divide-y divide-gray-100">
+                <% group.sessions.forEach(session => { %>
+                  <%
+                    const h = Math.floor(session.duration / 60);
+                    const m = session.duration % 60;
+                    const durationStr = (h > 0 ? h + 'h ' : '') + m + 'm';
+                  %>
+                  <div class="px-4 py-3 flex items-center justify-between gap-4 hover:bg-gray-50 transition">
+                    <div class="flex items-center gap-3 min-w-0 flex-1">
+                      <div class="bg-indigo-100 text-indigo-600 rounded-lg p-2 shrink-0">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
+                        </svg>
+                      </div>
+                      <p class="text-sm font-medium text-gray-700 truncate"><%= session.subject %></p>
+                    </div>
+                    <div class="flex items-center gap-2 shrink-0">
+                      <span class="text-sm font-medium text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded">
+                        <%= durationStr %>
+                      </span>
+                      <a
+                        href="/study/<%= session._id %>/edit"
+                        class="text-xs text-gray-600 hover:text-indigo-600 hover:bg-indigo-50 border border-gray-300 hover:border-indigo-300 px-2 py-1 rounded transition">
+                        Edit
+                      </a>
+                      <form method="POST" action="/study/<%= session._id %>?_method=DELETE" class="inline">
+                        <button
+                          type="submit"
+                          onclick="return confirm('Delete this session?')"
+                          class="text-xs text-gray-600 hover:text-red-600 hover:bg-red-50 border border-gray-300 hover:border-red-300 px-2 py-1 rounded transition">
+                          Delete
+                        </button>
+                      </form>
+                    </div>
+                  </div>
+                <% }) %>
+              </div>
+
+            </div>
+          <% }) %>
+        </div>
+      <% } %>
+    </div>
+
+  </div>
+
+  <!-- Settings Modal -->
+  <div id="settingsModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-xl font-semibold text-gray-700">Settings</h2>
+        <button
+          onclick="document.getElementById('settingsModal').classList.add('hidden')"
+          class="text-gray-400 hover:text-gray-600 transition">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+
+      <form method="POST" action="/settings">
+        <div class="mb-4">
+          <label for="dailyGoalHours" class="block text-sm font-medium text-gray-600 mb-2">
+            Daily Study Goal (hours)
+          </label>
+          <input
+            type="number"
+            id="dailyGoalHours"
+            name="dailyGoalHours"
+            min="0.5"
+            max="24"
+            step="0.5"
+            value="<%= dailyGoalHours %>"
+            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent transition"
+          />
+          <p class="text-xs text-gray-500 mt-2">Current goal: <%= dailyGoalHours %>h per day</p>
+        </div>
+        <button
+          type="submit"
+          class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 rounded-lg text-sm transition">
+          Save Settings
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer class="text-center py-6 text-gray-400 text-sm">
+    Study Time Tracker &copy; <%= new Date().getFullYear() %>
+  </footer>
+
+  <!-- Chart.js Initialization -->
+  <script>
+    // Client-side validation for Add Session form
+    function validateAddSessionForm(event) {
+      let isValid = true;
+      
+      // Clear all previous errors
+      clearAllValidationErrors();
+      
+      // Get form values
+      const subject = document.getElementById('subject').value.trim();
+      const hours = parseInt(document.getElementById('hours').value) || 0;
+      const minutes = parseInt(document.getElementById('minutes').value) || 0;
+      
+      // Validate subject
+      if (!subject) {
+        showValidationError('subject', 'Subject cannot be empty.');
+        isValid = false;
+      } else if (subject.length < 2 || subject.length > 50) {
+        showValidationError('subject', 'Subject must be between 2 and 50 characters.');
+        isValid = false;
+      }
+      
+      // Validate hours
+      if (hours < 0) {
+        showValidationError('hours', 'Hours cannot be negative.');
+        isValid = false;
+      } else if (hours > 23) {
+        showValidationError('hours', 'Hours cannot exceed 23.');
+        isValid = false;
+      }
+      
+      // Validate minutes
+      if (minutes < 0) {
+        showValidationError('minutes', 'Minutes cannot be negative.');
+        isValid = false;
+      } else if (minutes > 59) {
+        showValidationError('minutes', 'Minutes must be between 0 and 59.');
+        isValid = false;
+      }
+      
+      // Validate total duration
+      if (hours === 0 && minutes === 0) {
+        showValidationError('duration', 'Study duration must be greater than 0.');
+        isValid = false;
+      }
+      
+      if (!isValid) {
+        event.preventDefault();
+        return false;
+      }
+      
+      return true;
+    }
+    
+    function showValidationError(fieldId, message) {
+      const errorElement = document.getElementById(fieldId + 'Error');
+      const inputElement = document.getElementById(fieldId === 'duration' ? 'hours' : fieldId);
+      
+      if (errorElement) {
+        errorElement.textContent = message;
+        errorElement.classList.remove('hidden');
+      }
+      
+      if (inputElement) {
+        inputElement.classList.remove('border-gray-300', 'focus:ring-indigo-400');
+        inputElement.classList.add('border-red-400', 'bg-red-50', 'focus:ring-red-400');
+      }
+      
+      // For duration error, also highlight minutes field
+      if (fieldId === 'duration') {
+        const minutesElement = document.getElementById('minutes');
+        if (minutesElement) {
+          minutesElement.classList.remove('border-gray-300', 'focus:ring-indigo-400');
+          minutesElement.classList.add('border-red-400', 'bg-red-50', 'focus:ring-red-400');
+        }
+      }
+    }
+    
+    function clearValidationError(fieldId) {
+      const errorElement = document.getElementById(fieldId + 'Error');
+      const inputElement = document.getElementById(fieldId);
+      
+      if (errorElement) {
+        errorElement.classList.add('hidden');
+      }
+      
+      if (inputElement) {
+        inputElement.classList.remove('border-red-400', 'bg-red-50', 'focus:ring-red-400');
+        inputElement.classList.add('border-gray-300', 'focus:ring-indigo-400');
+      }
+      
+      // Also clear duration error when hours or minutes change
+      if (fieldId === 'hours' || fieldId === 'minutes') {
+        const durationError = document.getElementById('durationError');
+        if (durationError) {
+          durationError.classList.add('hidden');
+        }
+        // Reset both fields' styling if they were marked as error for duration
+        ['hours', 'minutes'].forEach(id => {
+          const element = document.getElementById(id);
+          if (element && element.classList.contains('border-red-400')) {
+            element.classList.remove('border-red-400', 'bg-red-50', 'focus:ring-red-400');
+            element.classList.add('border-gray-300', 'focus:ring-indigo-400');
+          }
+        });
+      }
+    }
+    
+    function clearAllValidationErrors() {
+      ['subject', 'hours', 'minutes', 'duration'].forEach(clearValidationError);
+    }
+
+    // Weekly Chart
+    const weeklyCtx = document.getElementById('weeklyChart').getContext('2d');
+    const weeklyChart = new Chart(weeklyCtx, {
+      type: 'bar',
+      data: {
+        labels: <%- JSON.stringify(weeklyChartLabels) %>,
+        datasets: [{
+          label: 'Study Hours',
+          data: <%- JSON.stringify(weeklyChartData) %>,
+          backgroundColor: 'rgba(99, 102, 241, 0.8)',
+          borderColor: 'rgba(99, 102, 241, 1)',
+          borderWidth: 1,
+          borderRadius: 6,
+          maxBarThickness: 60
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            display: false
+          },
+          tooltip: {
+            callbacks: {
+              label: function(context) {
+                return context.parsed.y + ' hours';
+              }
+            }
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: {
+              callback: function(value) {
+                return value + 'h';
+              }
+            },
+            grid: {
+              color: 'rgba(0, 0, 0, 0.05)'
+            }
+          },
+          x: {
+            grid: {
+              display: false
+            }
+          }
+        }
+      }
+    });
+
+    // Monthly Chart
+    const monthlyCtx = document.getElementById('monthlyChart').getContext('2d');
+    const monthlyChart = new Chart(monthlyCtx, {
+      type: 'line',
+      data: {
+        labels: <%- JSON.stringify(monthlyChartLabels) %>,
+        datasets: [{
+          label: 'Study Hours',
+          data: <%- JSON.stringify(monthlyChartData) %>,
+          backgroundColor: 'rgba(16, 185, 129, 0.1)',
+          borderColor: 'rgba(16, 185, 129, 1)',
+          borderWidth: 2,
+          fill: true,
+          tension: 0.4,
+          pointRadius: 3,
+          pointHoverRadius: 5,
+          pointBackgroundColor: 'rgba(16, 185, 129, 1)',
+          pointBorderColor: '#fff',
+          pointBorderWidth: 2
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            display: false
+          },
+          tooltip: {
+            callbacks: {
+              label: function(context) {
+                return context.parsed.y + ' hours';
+              }
+            }
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: {
+              callback: function(value) {
+                return value + 'h';
+              }
+            },
+            grid: {
+              color: 'rgba(0, 0, 0, 0.05)'
+            }
+          },
+          x: {
+            grid: {
+              display: false
+            },
+            ticks: {
+              maxRotation: 0,
+              autoSkip: true,
+              maxTicksLimit: 15
+            }
+          }
+        }
+      }
+    });
+  </script>
+
+</body>
+</html>

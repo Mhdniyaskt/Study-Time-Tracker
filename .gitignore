@@ -1,0 +1,25 @@
+# Dependencies
+node_modules/
+
+# Environment variables - NEVER commit this
+.env
+
+# Electron builder output
+dist/
+
+# Build logs
+build-log.txt
+build-verbose.log
+dist-build.log
+*.log
+
+# Windows shortcuts / temp files
+Thumbs.db
+Desktop.ini
+
+# OS files
+.DS_Store
+
+# Editor directories
+.vscode/
+.idea/

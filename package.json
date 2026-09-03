@@ -1,0 +1,78 @@
+{
+    "name": "study-time-tracker",
+    "version": "1.0.0",
+    "type": "module",
+    "main": "electron-main.js",
+    "author": "Your Name",
+    "description": "Study Time Tracker - A comprehensive time tracking application for students",
+    "license": "ISC",
+    "scripts": {
+        "dev": "nodemon server.js",
+        "start": "node server.js",
+        "electron": "electron .",
+        "electron-dev": "electron . --dev",
+        "check": "node check-setup.js",
+        "dist": "electron-builder --win --x64",
+        "dist-dir": "electron-builder --win --x64 --dir",
+        "pack": "electron-builder --dir",
+        "test": "echo \"Error: no test specified\" && exit 1"
+    },
+    "build": {
+        "appId": "com.studytimetracker.app",
+        "productName": "Study Time Tracker",
+        "artifactName": "${productName} Setup.${ext}",
+        "directories": {
+            "output": "dist",
+            "buildResources": "build"
+        },
+        "files": [
+            "electron-main.js",
+            "server.js",
+            "models/**/*",
+            "views/**/*",
+            "node_modules/**/*",
+            ".env.example",
+            "!node_modules/@yao-pkg/**",
+            "!node_modules/esbuild/**",
+            "!node_modules/nodemon/**",
+            "!node_modules/electron-builder/**",
+            "!dist/**"
+        ],
+        "win": {
+            "target": [
+                {
+                    "target": "nsis",
+                    "arch": ["x64"]
+                }
+            ]
+        },
+        "nsis": {
+            "oneClick": false,
+            "allowToChangeInstallationDirectory": true,
+            "createDesktopShortcut": true,
+            "createStartMenuShortcut": true,
+            "shortcutName": "Study Time Tracker",
+            "license": "LICENSE.txt"
+        }
+    },
+    "keywords": [
+        "study",
+        "tracker",
+        "time management",
+        "productivity"
+    ],
+    "dependencies": {
+        "dotenv": "^17.4.2",
+        "ejs": "^6.0.1",
+        "express": "^5.2.1",
+        "method-override": "^3.0.0",
+        "mongoose": "^9.9.4"
+    },
+    "devDependencies": {
+        "@yao-pkg/pkg": "^6.22.0",
+        "electron": "^44.1.1",
+        "electron-builder": "^25.1.8",
+        "esbuild": "^0.24.2",
+        "nodemon": "^3.1.14"
+    }
+}

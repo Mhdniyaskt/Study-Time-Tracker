@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title><%= title || 'Error' %> – Study Time Tracker</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 min-h-screen flex flex-col items-center justify-center px-4">
+
+  <!-- Error Container -->
+  <div class="max-w-md w-full bg-white rounded-2xl shadow-lg p-8 text-center">
+    
+    <!-- Error Icon -->
+    <div class="mb-6">
+      <% if (statusCode === 404) { %>
+        <svg class="w-20 h-20 mx-auto text-indigo-600" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9 5.25h.008v.008H12v-.008z" />
+        </svg>
+      <% } else { %>
+        <svg class="w-20 h-20 mx-auto text-red-600" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+        </svg>
+      <% } %>
+    </div>
+
+    <!-- Error Status Code -->
+    <h1 class="text-6xl font-bold <%= statusCode === 404 ? 'text-indigo-600' : 'text-red-600' %> mb-4">
+      <%= statusCode %>
+    </h1>
+
+    <!-- Error Title -->
+    <h2 class="text-2xl font-semibold text-gray-800 mb-3">
+      <%= title %>
+    </h2>
+
+    <!-- Error Message -->
+    <p class="text-gray-600 mb-8">
+      <%= message %>
+    </p>
+
+    <!-- Action Buttons -->
+    <div class="flex flex-col sm:flex-row gap-3">
+      <% if (showBack) { %>
+        <button
+          onclick="window.history.back()"
+          class="flex-1 border border-gray-300 hover:bg-gray-50 text-gray-700 font-medium py-2.5 px-4 rounded-lg text-sm transition">
+          Go Back
+        </button>
+      <% } %>
+      <a
+        href="/"
+        class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 px-4 rounded-lg text-sm transition">
+        Return Home
+      </a>
+    </div>
+
+    <% if (typeof devError !== 'undefined' && devError && isDevelopment) { %>
+      <!-- Development Error Details -->
+      <div class="mt-8 text-left">
+        <details class="border border-gray-300 rounded-lg overflow-hidden">
+          <summary class="bg-gray-100 px-4 py-2 cursor-pointer text-sm font-medium text-gray-700 hover:bg-gray-200">
+            🔧 Developer Details
+          </summary>
+          <div class="p-4 bg-gray-50 text-xs">
+            <pre class="whitespace-pre-wrap break-words text-gray-700"><%= devError %></pre>
+          </div>
+        </details>
+      </div>
+    <% } %>
+
+  </div>
+
+  <!-- Footer -->
+  <p class="mt-8 text-gray-400 text-sm">Study Time Tracker &copy; <%= new Date().getFullYear() %></p>
+
+</body>
+</html>
