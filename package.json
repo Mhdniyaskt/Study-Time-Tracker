@@ -27,6 +27,8 @@
         },
         "files": [
             "electron-main.js",
+            "preload.js",
+            "floating-timer.html",
             "server.js",
             "models/**/*",
             "views/**/*",

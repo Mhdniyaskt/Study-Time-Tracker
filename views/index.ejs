@@ -1,25 +1,68 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="h-full">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Study Time Tracker</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script>
+    // Theme initialization - runs before page renders to prevent flash
+    (function() {
+      const theme = localStorage.getItem('theme') || 
+                   (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+      if (theme === 'dark') {
+        document.documentElement.classList.add('dark');
+      }
+    })();
+    
+    // Configure Tailwind dark mode
+    tailwind.config = {
+      darkMode: 'class',
+    };
+  </script>
+  <style>
+    /* Placeholder text color for dark mode */
+    .dark input::placeholder {
+      color: #9ca3af; /* gray-400 */
+      opacity: 1;
+    }
+    .dark textarea::placeholder {
+      color: #9ca3af; /* gray-400 */
+      opacity: 1;
+    }
+  </style>
 </head>
-<body class="bg-gray-50 min-h-screen">
+<body class="bg-gray-50 dark:bg-gray-900 min-h-screen transition-colors duration-200">
 
   <!-- Compact Header -->
-  <header class="bg-white border-b border-gray-200 sticky top-0 z-10">
+  <header class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-10 transition-colors duration-200">
     <div class="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
       <div>
-        <h1 class="text-2xl font-bold text-indigo-600">Study Time Tracker</h1>
-        <p class="text-xs text-gray-500">Track your progress and stay consistent</p>
+        <h1 class="text-2xl font-bold text-indigo-600 dark:text-indigo-400">Study Time Tracker</h1>
+        <p class="text-xs text-gray-500 dark:text-gray-400">Track your progress and stay consistent</p>
       </div>
       <div class="flex items-center gap-2">
+        <!-- Theme Toggle -->
+        <button
+          id="themeToggle"
+          onclick="toggleTheme()"
+          class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition"
+          title="Toggle theme">
+          <svg id="themeIconLight" class="w-4 h-4 hidden dark:block" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+          </svg>
+          <svg id="themeIconDark" class="w-4 h-4 block dark:hidden" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+          </svg>
+          <span id="themeText" class="hidden sm:inline">
+            <span class="dark:hidden">Dark</span>
+            <span class="hidden dark:inline">Light</span>
+          </span>
+        </button>
         <a
           href="/statistics"
-          class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition">
+          class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
           </svg>
@@ -27,7 +70,7 @@
         </a>
         <a
           href="/history"
-          class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition">
+          class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6l4 2m6-2a10 10 0 11-20 0 10 10 0 0120 0z" />
           </svg>
@@ -35,7 +78,7 @@
         </a>
         <button
           onclick="document.getElementById('settingsModal').classList.toggle('hidden')"
-          class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition">
+          class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z" />
             <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -53,106 +96,106 @@
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
       
       <!-- Today's Study -->
-      <div class="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+      <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 shadow-sm transition-colors duration-200">
         <div class="flex items-center gap-3 mb-2">
-          <div class="bg-indigo-100 rounded-lg p-2">
-            <svg class="w-5 h-5 text-indigo-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <div class="bg-indigo-100 dark:bg-indigo-900 rounded-lg p-2">
+            <svg class="w-5 h-5 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6l4 2m6-2a10 10 0 11-20 0 10 10 0 0120 0z" />
             </svg>
           </div>
-          <span class="text-sm font-medium text-gray-600">Today's Study</span>
+          <span class="text-sm font-medium text-gray-600 dark:text-gray-300">Today's Study</span>
         </div>
         <div class="mb-2">
           <% const todayHours = Math.floor(todayTotal / 60); %>
           <% const todayMins = todayTotal % 60; %>
-          <p class="text-2xl font-bold text-gray-800">
+          <p class="text-2xl font-bold text-gray-800 dark:text-gray-100">
             <%= todayHours > 0 ? todayHours + 'h ' : '' %><%= todayMins + 'm' %>
           </p>
           <% const dgh = Math.floor(dailyGoal / 60); %>
-          <p class="text-xs text-gray-500">Goal: <%= dgh %>h</p>
+          <p class="text-xs text-gray-500 dark:text-gray-400">Goal: <%= dgh %>h</p>
         </div>
-        <div class="w-full bg-gray-100 rounded-full h-1.5">
-          <div class="h-1.5 bg-indigo-500 rounded-full transition-all" style="width: <%= dailyProgress %>%"></div>
+        <div class="w-full bg-gray-100 dark:bg-gray-700 rounded-full h-1.5">
+          <div class="h-1.5 bg-indigo-500 dark:bg-indigo-400 rounded-full transition-all" style="width: <%= dailyProgress %>%"></div>
         </div>
       </div>
 
       <!-- This Week -->
-      <div class="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+      <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 shadow-sm transition-colors duration-200">
         <div class="flex items-center gap-3 mb-2">
-          <div class="bg-emerald-100 rounded-lg p-2">
-            <svg class="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <div class="bg-emerald-100 dark:bg-emerald-900 rounded-lg p-2">
+            <svg class="w-5 h-5 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
             </svg>
           </div>
-          <span class="text-sm font-medium text-gray-600">This Week</span>
+          <span class="text-sm font-medium text-gray-600 dark:text-gray-300">This Week</span>
         </div>
         <div>
           <%
             const wh = Math.floor(weeklyTotal / 60);
             const wm = weeklyTotal % 60;
           %>
-          <p class="text-2xl font-bold text-gray-800">
+          <p class="text-2xl font-bold text-gray-800 dark:text-gray-100">
             <%= wh > 0 ? wh + 'h ' : '' %><%= wm + 'm' %>
           </p>
-          <p class="text-xs text-gray-500">Total study time</p>
+          <p class="text-xs text-gray-500 dark:text-gray-400">Total study time</p>
         </div>
       </div>
 
       <!-- This Month -->
-      <div class="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+      <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 shadow-sm transition-colors duration-200">
         <div class="flex items-center gap-3 mb-2">
-          <div class="bg-sky-100 rounded-lg p-2">
-            <svg class="w-5 h-5 text-sky-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <div class="bg-sky-100 dark:bg-sky-900 rounded-lg p-2">
+            <svg class="w-5 h-5 text-sky-600 dark:text-sky-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
             </svg>
           </div>
-          <span class="text-sm font-medium text-gray-600">This Month</span>
+          <span class="text-sm font-medium text-gray-600 dark:text-gray-300">This Month</span>
         </div>
         <div>
           <%
             const mh = Math.floor(monthlyTotal / 60);
             const mm = monthlyTotal % 60;
           %>
-          <p class="text-2xl font-bold text-gray-800">
+          <p class="text-2xl font-bold text-gray-800 dark:text-gray-100">
             <%= mh > 0 ? mh + 'h ' : '' %><%= mm + 'm' %>
           </p>
-          <p class="text-xs text-gray-500"><%= monthlySessions %> <%= monthlySessions === 1 ? 'session' : 'sessions' %></p>
+          <p class="text-xs text-gray-500 dark:text-gray-400"><%= monthlySessions %> <%= monthlySessions === 1 ? 'session' : 'sessions' %></p>
         </div>
       </div>
 
       <!-- Overall Total -->
-      <div class="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+      <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 shadow-sm transition-colors duration-200">
         <div class="flex items-center gap-3 mb-2">
-          <div class="bg-violet-100 rounded-lg p-2">
-            <svg class="w-5 h-5 text-violet-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <div class="bg-violet-100 dark:bg-violet-900 rounded-lg p-2">
+            <svg class="w-5 h-5 text-violet-600 dark:text-violet-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zm6.75-9.75C9.75 2.754 10.254 2.25 10.875 2.25h2.25c.621 0 1.125.504 1.125 1.125v16.5c0 .621-.504 1.125-1.125 1.125h-2.25A1.125 1.125 0 019.75 19.875V3.375zm6.75 4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.625c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.25z" />
             </svg>
           </div>
-          <span class="text-sm font-medium text-gray-600">Overall Total</span>
+          <span class="text-sm font-medium text-gray-600 dark:text-gray-300">Overall Total</span>
         </div>
         <div>
           <% const totalHours = Math.floor(totalStudyTime / 60); %>
           <% const totalMins = totalStudyTime % 60; %>
-          <p class="text-2xl font-bold text-gray-800">
+          <p class="text-2xl font-bold text-gray-800 dark:text-gray-100">
             <%= totalHours > 0 ? totalHours + 'h ' : '' %><%= totalMins + 'm' %>
           </p>
-          <p class="text-xs text-gray-500">All time</p>
+          <p class="text-xs text-gray-500 dark:text-gray-400">All time</p>
         </div>
       </div>
 
       <!-- Study Streak -->
-      <div class="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+      <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 shadow-sm transition-colors duration-200">
         <div class="flex items-center gap-3 mb-2">
-          <div class="<%= currentStreak > 0 ? 'bg-orange-100' : 'bg-gray-100' %> rounded-lg p-2">
+          <div class="<%= currentStreak > 0 ? 'bg-orange-100 dark:bg-orange-900' : 'bg-gray-100 dark:bg-gray-700' %> rounded-lg p-2">
             <span class="text-2xl">🔥</span>
           </div>
-          <span class="text-sm font-medium text-gray-600">Study Streak</span>
+          <span class="text-sm font-medium text-gray-600 dark:text-gray-300">Study Streak</span>
         </div>
         <div>
-          <p class="text-2xl font-bold <%= currentStreak > 0 ? 'text-orange-600' : 'text-gray-400' %>">
+          <p class="text-2xl font-bold <%= currentStreak > 0 ? 'text-orange-600 dark:text-orange-400' : 'text-gray-400 dark:text-gray-500' %>">
             <%= currentStreak %> <%= currentStreak === 1 ? 'day' : 'days' %>
           </p>
-          <p class="text-xs text-gray-500">
+          <p class="text-xs text-gray-500 dark:text-gray-400">
             <%= currentStreak > 0 ? 'Keep going!' : 'Reach your goal today' %>
           </p>
         </div>
@@ -164,7 +207,7 @@
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
       
       <!-- LEFT: Add Study Session Form -->
-      <div class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+      <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6 shadow-sm">
         <h2 class="text-lg font-semibold text-gray-700 mb-4">Add Study Session</h2>
 
         <%# ---- Validation error banner ---- %>
@@ -194,8 +237,8 @@
               placeholder="e.g. Mathematics, History..."
               value="<%= subjectVal %>"
               required
-              class="w-full border rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:border-transparent transition
-                     <%= subjectError ? 'border-red-400 bg-red-50 focus:ring-red-400' : 'border-gray-300 focus:ring-indigo-400' %>"
+              class="w-full border rounded-lg px-3 py-2 text-sm text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:border-transparent transition
+                     <%= subjectError ? 'border-red-400 bg-red-50 focus:ring-red-400' : 'border-gray-300 dark:border-gray-600 focus:ring-indigo-400' %>"
               oninput="clearValidationError('subject')"
             />
             <p id="subjectError" class="mt-1 text-xs text-red-500 hidden"></p>
@@ -220,8 +263,8 @@
                 max="23"
                 placeholder="0"
                 value="<%= hoursVal %>"
-                class="w-full border rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:border-transparent transition
-                       <%= hoursError ? 'border-red-400 bg-red-50 focus:ring-red-400' : 'border-gray-300 focus:ring-indigo-400' %>"
+                class="w-full border rounded-lg px-3 py-2 text-sm text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:border-transparent transition
+                       <%= hoursError ? 'border-red-400 bg-red-50 focus:ring-red-400' : 'border-gray-300 dark:border-gray-600 focus:ring-indigo-400' %>"
                 oninput="clearValidationError('hours')"
               />
               <p id="hoursError" class="mt-1 text-xs text-red-500 hidden"></p>
@@ -240,8 +283,8 @@
                 max="59"
                 placeholder="0"
                 value="<%= minutesVal %>"
-                class="w-full border rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:border-transparent transition
-                       <%= minutesError ? 'border-red-400 bg-red-50 focus:ring-red-400' : 'border-gray-300 focus:ring-indigo-400' %>"
+                class="w-full border rounded-lg px-3 py-2 text-sm text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:border-transparent transition
+                       <%= minutesError ? 'border-red-400 bg-red-50 focus:ring-red-400' : 'border-gray-300 dark:border-gray-600 focus:ring-indigo-400' %>"
                 oninput="clearValidationError('minutes')"
               />
               <p id="minutesError" class="mt-1 text-xs text-red-500 hidden"></p>
@@ -261,12 +304,30 @@
       </div>
 
       <!-- MIDDLE: Study Timer -->
-      <div class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
-        <h2 class="text-lg font-semibold text-gray-700 mb-4">Study Timer</h2>
+      <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6 shadow-sm">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-lg font-semibold text-gray-700 dark:text-gray-200">Study Timer</h2>
+          <!-- Pop-out widget button -->
+          <button
+            id="openWidgetBtn"
+            onclick="openTimerWidget()"
+            title="Open compact timer widget"
+            class="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-gray-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 bg-gray-100 dark:bg-gray-700 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 border border-gray-200 dark:border-gray-600 hover:border-indigo-300 dark:hover:border-indigo-600 rounded-lg transition">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3 8V5a2 2 0 012-2h3M16 3h3a2 2 0 012 2v3M21 16v3a2 2 0 01-2 2h-3M8 21H5a2 2 0 01-2-2v-3" />
+            </svg>
+            <!-- Label swaps at runtime: "Desktop Widget" in Electron, "Widget" in browser -->
+            <span id="widgetBtnLabel">Widget</span>
+            <!-- Runtime badge: green dot = Electron, gray dot = browser-only -->
+            <span id="widgetRuntimeBadge"
+                  title="Runtime: browser-only (run via npm run electron for desktop widget)"
+                  style="width:6px;height:6px;border-radius:50%;background:#9ca3af;flex-shrink:0;"></span>
+          </button>
+        </div>
 
         <!-- Timer Display -->
         <div class="text-center mb-4">
-          <div id="timerDisplay" class="text-5xl font-bold text-gray-800 font-mono tracking-tight mb-2">
+          <div id="timerDisplay" class="text-5xl font-bold text-gray-800 dark:text-gray-100 font-mono tracking-tight mb-2">
             00:00:00
           </div>
           <p id="timerStatus" class="text-xs text-gray-500">Ready to start</p>
@@ -279,7 +340,7 @@
             type="text"
             id="timerSubject"
             placeholder="e.g. Mathematics, History..."
-            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent transition"
+            class="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg px-3 py-2 text-sm text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent transition"
           />
           <p id="timerSubjectError" class="mt-1 text-xs text-red-500 hidden"></p>
         </div>
@@ -324,7 +385,7 @@
 
         <!-- Info Message -->
         <p class="text-xs text-gray-500 text-center mt-3">
-          ⓘ Time will be added only when you click Submit.
+          ⓘ Stop pauses the timer. Click Submit when done to save your study time.
         </p>
 
         <!-- Timer Warning Message -->
@@ -334,7 +395,7 @@
       </div>
 
       <!-- RIGHT: Study by Subject -->
-      <div class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+      <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6 shadow-sm">
         <h2 class="text-lg font-semibold text-gray-700 mb-4">Study by Subject</h2>
         
         <% if (subjectStats.length > 0) { %>
@@ -353,7 +414,7 @@
               <div>
                 <div class="flex items-center justify-between mb-1.5">
                   <span class="text-sm font-medium text-gray-700"><%= stat.subject %></span>
-                  <span class="text-sm font-semibold text-indigo-600"><%= statTimeStr %></span>
+                  <span class="text-sm font-semibold text-indigo-600 dark:text-indigo-400"><%= statTimeStr %></span>
                 </div>
                 <div class="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
                   <div
@@ -377,7 +438,7 @@
     </div>
 
     <!-- Weekly Study Chart -->
-    <div class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+    <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6 shadow-sm">
       <h2 class="text-lg font-semibold text-gray-700 mb-4">Weekly Study Chart</h2>
       <div class="w-full h-64 sm:h-80">
         <canvas id="weeklyChart"></canvas>
@@ -385,7 +446,7 @@
     </div>
 
     <!-- Monthly Study Chart -->
-    <div class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+    <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6 shadow-sm">
       <h2 class="text-lg font-semibold text-gray-700 mb-4">Monthly Study Chart</h2>
       <div class="w-full h-64 sm:h-80">
         <canvas id="monthlyChart"></canvas>
@@ -393,7 +454,7 @@
     </div>
 
     <!-- Study History -->
-    <div class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+    <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6 shadow-sm">
       <h2 class="text-lg font-semibold text-gray-700 mb-4">Study History</h2>
 
       <% if (groupedSessions.length === 0) { %>
@@ -470,14 +531,121 @@
 
   </div>
 
+  <!-- ========================================================
+       COMPACT FLOATING TIMER WIDGET
+       Dark overlay — Windows Clock compact-overlay style
+       Draggable, resizable, position/size persisted in localStorage
+       Timer state is fully shared with the main dashboard timer
+       ======================================================== -->
+  <div
+    id="compactWidget"
+    style="display:none; position:fixed; z-index:9000; top:20px; right:20px;
+           width:220px; min-width:180px; min-height:140px;
+           background:#1a1a1a; border-radius:12px;
+           box-shadow:0 8px 32px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.08);
+           font-family: 'Segoe UI', system-ui, sans-serif;
+           color:#fff; overflow:hidden; resize:both; user-select:none;">
+
+    <!-- Drag handle / title bar -->
+    <div id="widgetTitleBar"
+         style="display:flex; align-items:center; justify-content:space-between;
+                padding:8px 10px 6px; background:#141414; cursor:move; gap:6px;">
+      <!-- Subject label -->
+      <span id="wSubject"
+            style="font-size:11px; color:#888; flex:1;
+                   white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+        📚 No subject
+      </span>
+      <!-- Restore full timer -->
+      <button onclick="restoreFullTimer()"
+              title="Restore full timer"
+              style="background:transparent; border:none; color:#888; cursor:pointer;
+                     padding:2px; border-radius:4px; display:flex; align-items:center; line-height:1;">
+        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round"
+                d="M4 8V5a1 1 0 011-1h3M20 8V5a1 1 0 00-1-1h-3M4 16v3a1 1 0 001 1h3M20 16v3a1 1 0 01-1 1h-3"/>
+        </svg>
+      </button>
+      <!-- Close (does NOT reset timer) -->
+      <button onclick="closeCompactWidget()"
+              title="Close widget (timer keeps running)"
+              style="background:transparent; border:none; color:#888; cursor:pointer;
+                     padding:2px 3px; border-radius:4px; font-size:16px; line-height:1;">
+        ×
+      </button>
+    </div>
+
+    <!-- Clock display -->
+    <div style="text-align:center; padding:10px 12px 4px;">
+      <div id="wTime"
+           style="font-size:36px; font-weight:300; letter-spacing:1px;
+                  font-variant-numeric:tabular-nums; line-height:1; color:#fff;">
+        00:00:00
+      </div>
+      <div style="font-size:9px; color:#555; letter-spacing:6px; margin-top:2px; text-transform:uppercase;">
+        hr&nbsp;&nbsp;&nbsp;min&nbsp;&nbsp;&nbsp;sec
+      </div>
+    </div>
+
+    <!-- Status line -->
+    <div id="wStatus"
+         style="text-align:center; font-size:10px; color:#666; min-height:14px; padding:2px 0 4px;">
+      Ready
+    </div>
+
+    <!-- Controls -->
+    <div style="display:flex; justify-content:center; gap:12px; padding:6px 12px 14px;">
+      <!-- Start button (shown when ready) -->
+      <button id="wStartBtn"
+              onclick="wStart()"
+              title="Start"
+              style="width:40px; height:40px; border-radius:50%; border:none; cursor:pointer;
+                     background:#e86c3a; color:#fff; font-size:16px;
+                     display:flex; align-items:center; justify-content:center;
+                     transition:transform .15s, background .15s;">
+        ▶
+      </button>
+      <!-- Pause button (shown when running) -->
+      <button id="wPauseBtn"
+              onclick="wPause()"
+              title="Pause"
+              style="width:40px; height:40px; border-radius:50%; border:none; cursor:pointer;
+                     background:#e86c3a; color:#fff; font-size:14px;
+                     display:none; align-items:center; justify-content:center;
+                     transition:transform .15s, background .15s;">
+        ⏸
+      </button>
+      <!-- Resume button (shown when paused) -->
+      <button id="wResumeBtn"
+              onclick="wResume()"
+              title="Resume"
+              style="width:40px; height:40px; border-radius:50%; border:none; cursor:pointer;
+                     background:#4ade80; color:#111; font-size:16px;
+                     display:none; align-items:center; justify-content:center;
+                     transition:transform .15s, background .15s;">
+        ▶
+      </button>
+      <!-- Reset -->
+      <button id="wResetBtn"
+              onclick="wReset()"
+              title="Reset"
+              style="width:40px; height:40px; border-radius:50%; border:none; cursor:pointer;
+                     background:#333; color:#aaa; font-size:16px;
+                     display:flex; align-items:center; justify-content:center;
+                     transition:transform .15s, background .15s;">
+        ↻
+      </button>
+    </div>
+  </div>
+
   <!-- Settings Modal -->
-  <div id="settingsModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-    <div class="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+  <div id="settingsModal" class="hidden fixed inset-0 bg-black bg-opacity-50 dark:bg-opacity-70 z-50 flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full p-6 transition-colors duration-200">
       <div class="flex items-center justify-between mb-4">
-        <h2 class="text-xl font-semibold text-gray-700">Settings</h2>
+        <h2 class="text-xl font-semibold text-gray-700 dark:text-gray-200">Settings</h2>
         <button
           onclick="document.getElementById('settingsModal').classList.add('hidden')"
-          class="text-gray-400 hover:text-gray-600 transition">
+          class="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition">
           <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
           </svg>
@@ -486,7 +654,7 @@
 
       <form method="POST" action="/settings">
         <div class="mb-4">
-          <label for="dailyGoalHours" class="block text-sm font-medium text-gray-600 mb-2">
+          <label for="dailyGoalHours" class="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-2">
             Daily Study Goal (hours)
           </label>
           <input
@@ -497,13 +665,13 @@
             max="24"
             step="0.5"
             value="<%= dailyGoalHours %>"
-            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent transition"
+            class="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg px-3 py-2 text-sm text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-400 dark:focus:ring-indigo-500 focus:border-transparent transition"
           />
-          <p class="text-xs text-gray-500 mt-2">Current goal: <%= dailyGoalHours %>h per day</p>
+          <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">Current goal: <%= dailyGoalHours %>h per day</p>
         </div>
         <button
           type="submit"
-          class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 rounded-lg text-sm transition">
+          class="w-full bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 text-white font-medium py-2.5 rounded-lg text-sm transition">
           Save Settings
         </button>
       </form>
@@ -511,7 +679,7 @@
   </div>
 
   <!-- Footer -->
-  <footer class="text-center py-6 text-gray-400 text-sm">
+  <footer class="text-center py-6 text-gray-400 dark:text-gray-500 text-sm">
     Study Time Tracker &copy; <%= new Date().getFullYear() %>
   </footer>
 
@@ -628,6 +796,11 @@
       ['subject', 'hours', 'minutes', 'duration'].forEach(clearValidationError);
     }
 
+    // Get current theme for chart colors
+    const isDarkMode = document.documentElement.classList.contains('dark');
+    const chartTextColor = isDarkMode ? '#e5e7eb' : '#374151';
+    const chartGridColor = isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)';
+
     // Weekly Chart
     const weeklyCtx = document.getElementById('weeklyChart').getContext('2d');
     const weeklyChart = new Chart(weeklyCtx, {
@@ -663,15 +836,19 @@
           y: {
             beginAtZero: true,
             ticks: {
+              color: chartTextColor,
               callback: function(value) {
                 return value + 'h';
               }
             },
             grid: {
-              color: 'rgba(0, 0, 0, 0.05)'
+              color: chartGridColor
             }
           },
           x: {
+            ticks: {
+              color: chartTextColor
+            },
             grid: {
               display: false
             }
@@ -697,7 +874,7 @@
           pointRadius: 3,
           pointHoverRadius: 5,
           pointBackgroundColor: 'rgba(16, 185, 129, 1)',
-          pointBorderColor: '#fff',
+          pointBorderColor: isDarkMode ? '#1f2937' : '#fff',
           pointBorderWidth: 2
         }]
       },
@@ -720,22 +897,24 @@
           y: {
             beginAtZero: true,
             ticks: {
+              color: chartTextColor,
               callback: function(value) {
                 return value + 'h';
               }
             },
             grid: {
-              color: 'rgba(0, 0, 0, 0.05)'
+              color: chartGridColor
             }
           },
           x: {
-            grid: {
-              display: false
-            },
             ticks: {
+              color: chartTextColor,
               maxRotation: 0,
               autoSkip: true,
               maxTicksLimit: 15
+            },
+            grid: {
+              display: false
             }
           }
         }
@@ -748,9 +927,9 @@
 
     /**
      * Timer State (persisted in localStorage for cross-navigation persistence)
-     * - timerState: 'ready' | 'running' | 'stopped'
+     * - timerState: 'ready' | 'running' | 'paused'
      * - timerSubject: string
-     * - timerStartTime: timestamp (when timer was started)
+     * - timerStartTime: timestamp (when timer was started/resumed)
      * - timerElapsedSeconds: exact accumulated seconds
      */
 
@@ -799,7 +978,7 @@
             timerStartTime = now; // Reset to now
             startTimerTick();
             updateUI();
-          } else if (timerState === 'stopped') {
+          } else if (timerState === 'paused') {
             updateDisplay();
             updateUI();
           }
@@ -890,6 +1069,10 @@
         submitBtn.disabled = true;
         submitBtnText.textContent = 'Submit';
         
+        // Update Stop button label and icon
+        stopBtn.querySelector('span:first-child').textContent = '■';
+        stopBtn.querySelector('span:last-child').textContent = 'Stop';
+        
         timerSubjectInput.disabled = false;
       } else if (timerState === 'running') {
         timerStatus.textContent = 'Running ●';
@@ -901,19 +1084,29 @@
         submitBtn.disabled = true;
         submitBtnText.textContent = 'Submit';
         
+        // Update Stop button to show "Stop" (pause)
+        stopBtn.querySelector('span:first-child').textContent = '⏸';
+        stopBtn.querySelector('span:last-child').textContent = 'Stop';
+        stopBtn.className = 'bg-amber-600 hover:bg-amber-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-medium py-2 rounded-lg text-sm transition flex items-center justify-center gap-1';
+        
         timerSubjectInput.disabled = true;
-      } else if (timerState === 'stopped') {
-        timerStatus.textContent = 'Stopped';
+      } else if (timerState === 'paused') {
+        timerStatus.textContent = 'Paused';
         timerStatus.className = 'text-xs text-amber-600 font-medium';
         
         startBtn.disabled = true;
-        stopBtn.disabled = true;
+        stopBtn.disabled = false;
         resetBtn.disabled = false;
         submitBtn.disabled = false;
         
         // Show exact time that will be added
         const timeStr = formatTimeHuman(timerElapsedSeconds);
         submitBtnText.textContent = `Submit (Add ${timeStr})`;
+        
+        // Update Stop button to show "Resume"
+        stopBtn.querySelector('span:first-child').textContent = '▶';
+        stopBtn.querySelector('span:last-child').textContent = 'Resume';
+        stopBtn.className = 'bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-medium py-2 rounded-lg text-sm transition flex items-center justify-center gap-1';
         
         timerSubjectInput.disabled = false; // Allow editing subject before submit
       }
@@ -1007,25 +1200,34 @@
     }
 
     /**
-     * STOP button handler
-     * Stops/freezes the timer WITHOUT saving to database
-     * Preserves exact elapsed seconds
+     * STOP/RESUME button handler
+     * When running: Pauses the timer (freezes elapsed time)
+     * When paused: Resumes the timer (continues from paused time)
+     * Does NOT save to database
      */
     function stopTimer() {
-      if (timerState !== 'running') return;
+      if (timerState === 'running') {
+        // PAUSE: Calculate and freeze exact elapsed time
+        const now = Date.now();
+        const additionalSeconds = Math.floor((now - timerStartTime) / 1000);
+        timerElapsedSeconds += additionalSeconds;
 
-      // Calculate and freeze exact elapsed time
-      const now = Date.now();
-      const additionalSeconds = Math.floor((now - timerStartTime) / 1000);
-      timerElapsedSeconds += additionalSeconds;
+        timerState = 'paused';
+        timerStartTime = null;
 
-      timerState = 'stopped';
-      timerStartTime = null;
+        stopTimerTick();
+        updateDisplay();
+        updateUI();
+        saveTimerState();
+      } else if (timerState === 'paused') {
+        // RESUME: Continue timer from paused elapsed time
+        timerState = 'running';
+        timerStartTime = Date.now();
 
-      stopTimerTick();
-      updateDisplay();
-      updateUI();
-      saveTimerState();
+        startTimerTick();
+        updateUI();
+        saveTimerState();
+      }
     }
 
     /**
@@ -1067,7 +1269,7 @@
      * Saves exact durationSeconds to database
      */
     async function submitTimer() {
-      if (timerState !== 'stopped') {
+      if (timerState !== 'paused') {
         showWarning('Please stop the timer before submitting.');
         return;
       }
@@ -1141,107 +1343,77 @@
     // ==========================================================================
     // ELECTRON IPC INTEGRATION
     // ==========================================================================
-    
-    /**
-     * Integrate with Electron's shared timer state if running in Electron
-     */
+
     if (window.electronAPI) {
-      // Listen for timer state updates from Electron
-      window.electronAPI.onTimerState((state) => {
-        // Sync local state with Electron's shared state
-        timerState = state.state;
-        timerSubject = state.subject;
-        timerStartTime = state.startTime;
-        timerElapsedSeconds = state.elapsedSeconds;
-        
-        // Handle pause state
-        if (state.isPaused && timerState === 'running') {
-          // Timer is paused - show as stopped in main UI
-          // (main UI doesn't have pause, so we show stopped state)
-          timerState = 'stopped';
+      // ── Sync dashboard localStorage state → Electron shared state ──────────
+      // We patch saveTimerState so every tick/state-change also pushes into
+      // the Electron main-process sharedTimerState (which the widget reads).
+      const _origSaveTimerState = saveTimerState;
+      saveTimerState = function () {
+        _origSaveTimerState();
+        window.electronAPI.sendTimerAction('update-state', {
+          state:          timerState,
+          subject:        timerSubject,
+          startTime:      timerStartTime,
+          elapsedSeconds: timerElapsedSeconds,
+        });
+      };
+
+      // ── Receive state broadcasts from the main process ──────────────────────
+      // The floating widget can pause/resume/reset — we mirror those changes
+      // back into the dashboard UI and localStorage.
+      window.electronAPI.onTimerState((s) => {
+        // Map Electron's sharedTimerState fields to dashboard variables
+        timerState          = s.state || 'ready';
+        timerSubject        = s.subject || '';
+        timerStartTime      = s.startTime || null;
+        timerElapsedSeconds = s.elapsedSeconds || 0;
+
+        // Keep the subject input in sync
+        timerSubjectInput.value = timerSubject;
+
+        // If the widget resumed the timer, restart the local tick
+        if (timerState === 'running' && !timerIntervalId) {
+          // Recalculate elapsed from the stored startTime so we don't double-count
+          if (timerStartTime) {
+            const extra = Math.floor((Date.now() - timerStartTime) / 1000);
+            timerElapsedSeconds += extra;
+            timerStartTime = Date.now();
+          }
+          startTimerTick();
+        } else if (timerState !== 'running' && timerIntervalId) {
+          stopTimerTick();
         }
-        
+
         updateDisplay();
         updateUI();
-        saveTimerState();
+        _origSaveTimerState();
       });
-      
-      // Override timer functions to use Electron IPC
-      const originalStartTimer = window.startTimer;
-      window.startTimer = function() {
-        // Validate subject locally first
-        const subject = timerSubjectInput.value.trim();
-        if (!subject) {
-          showSubjectError('Subject is required.');
-          return;
-        }
-        if (subject.length < 2) {
-          showSubjectError('Subject must be at least 2 characters.');
-          return;
-        }
-        if (subject.length > 50) {
-          showSubjectError('Subject must be 50 characters or fewer.');
-          return;
-        }
-        
-        // Send to Electron
-        window.electronAPI.sendTimerAction('start', { subject });
-      };
-      
-      const originalStopTimer = window.stopTimer;
-      window.stopTimer = function() {
-        window.electronAPI.sendTimerAction('stop');
-      };
-      
-      const originalResetTimer = window.clearAndResetTimer;
-      window.clearAndResetTimer = function() {
-        window.electronAPI.sendTimerAction('reset');
-      };
-      
-      // Request initial state from Electron
-      window.electronAPI.requestTimerState();
-      
-      // Handle save requests from floating widget (via Electron main process)
-      window.electronAPI.onSaveTimerSession(async (data) => {
-        const { subject, elapsedSeconds } = data;
-        
+
+      // ── "stop-and-save" from the widget — POST to /timer/save here ──────────
+      window.electronAPI.onSaveTimerSession(async ({ subject, elapsedSeconds }) => {
         try {
           const response = await fetch('/timer/save', {
-            method: 'POST',
+            method:  'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ subject, elapsedSeconds })
+            body:    JSON.stringify({ subject, elapsedSeconds }),
           });
-          
           if (response.ok) {
-            // Refresh dashboard to show new session
-            location.reload();
+            clearAndResetTimer();
+            window.location.reload();
           } else {
-            const errorData = await response.json();
-            console.error('Failed to save timer session:', errorData.error);
-            alert('Failed to save study session: ' + errorData.error);
+            const err = await response.json();
+            console.error('Failed to save timer session:', err.error);
+            alert('Failed to save study session: ' + err.error);
           }
-        } catch (error) {
-          console.error('Error saving timer session:', error);
-          alert('Error saving study session. Please try again.');
+        } catch (err) {
+          console.error('Error saving timer session:', err);
+          alert('Network error saving study session. Please try again.');
         }
       });
-      
-      // Sync local changes to Electron
-      const originalSaveTimerState = saveTimerState;
-      saveTimerState = function() {
-        originalSaveTimerState();
-        
-        // Also update Electron's shared state
-        if (window.electronAPI) {
-          window.electronAPI.sendTimerAction('update-state', {
-            state: timerState,
-            subject: timerSubject,
-            startTime: timerStartTime,
-            elapsedSeconds: timerElapsedSeconds,
-            isPaused: false
-          });
-        }
-      };
+
+      // Push current state immediately so the widget is in sync on first open
+      window.electronAPI.requestTimerState();
     }
 
     // ==========================================================================
@@ -1250,6 +1422,379 @@
 
     // ==========================================================================
     // END TIMER IMPLEMENTATION
+    // ==========================================================================
+
+    // ==========================================================================
+    // THEME TOGGLE FUNCTIONALITY
+    // ==========================================================================
+
+    /**
+     * Toggle between light and dark theme
+     * Saves preference to localStorage
+     */
+    function toggleTheme() {
+      const html = document.documentElement;
+      const currentTheme = html.classList.contains('dark') ? 'dark' : 'light';
+      const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+      
+      if (newTheme === 'dark') {
+        html.classList.add('dark');
+      } else {
+        html.classList.remove('dark');
+      }
+      
+      localStorage.setItem('theme', newTheme);
+      
+      // Update Chart.js charts with new theme
+      updateChartsTheme(newTheme);
+    }
+
+    /**
+     * Update Chart.js charts to match current theme
+     */
+    function updateChartsTheme(theme) {
+      const isDark = theme === 'dark';
+      const textColor = isDark ? '#e5e7eb' : '#374151';
+      const gridColor = isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)';
+      
+      // Update weekly chart
+      if (typeof weeklyChart !== 'undefined' && weeklyChart) {
+        weeklyChart.options.scales.y.ticks.color = textColor;
+        weeklyChart.options.scales.x.ticks.color = textColor;
+        weeklyChart.options.scales.y.grid.color = gridColor;
+        weeklyChart.update('none'); // Update without animation
+      }
+      
+      // Update monthly chart
+      if (typeof monthlyChart !== 'undefined' && monthlyChart) {
+        monthlyChart.options.scales.y.ticks.color = textColor;
+        monthlyChart.options.scales.x.ticks.color = textColor;
+        monthlyChart.options.scales.y.grid.color = gridColor;
+        monthlyChart.update('none');
+      }
+    }
+
+    // Initialize charts with current theme on page load
+    window.addEventListener('DOMContentLoaded', () => {
+      const theme = localStorage.getItem('theme') || 
+                   (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+      updateChartsTheme(theme);
+    });
+
+    // ==========================================================================
+    // END THEME TOGGLE
+    // ==========================================================================
+
+    // ==========================================================================
+    // COMPACT WIDGET — state sync, drag, resize, persistence
+    // All controls share the exact same timerState/timerElapsedSeconds/etc.
+    // No separate timer — the widget is a second view of the main timer.
+    // ==========================================================================
+
+    /**
+     * openTimerWidget()
+     * ─ In Electron:  opens a native BrowserWindow (alwaysOnTop, resizable,
+     *                 draggable anywhere on the desktop).
+     * ─ In browser:   falls back to the in-page floating div overlay.
+     *
+     * The green/gray dot on the Widget button shows which path is active:
+     *   ● green  = running inside Electron  → native desktop window
+     *   ● gray   = running in browser only  → in-page div overlay
+     */
+    function openTimerWidget() {
+      if (window.electronAPI) {
+        console.log('[Widget] Electron detected — opening native BrowserWindow widget');
+        // Push current timer state to the main process so the widget opens
+        // already showing the right time and subject.
+        window.electronAPI.sendTimerAction('update-state', {
+          state:          timerState,
+          subject:        timerSubject,
+          startTime:      timerStartTime,
+          elapsedSeconds: timerElapsedSeconds,
+        });
+        window.electronAPI.openFloatingWidget();
+      } else {
+        console.log('[Widget] No Electron API — using in-page overlay fallback');
+        openCompactWidget();   // plain-browser fallback
+      }
+    }
+
+    /**
+     * Update the Widget button badge and label to reflect the actual runtime.
+     * Runs once after the page is ready, so the user always knows which mode
+     * they are in without opening the browser console.
+     */
+    function initWidgetButtonBadge() {
+      const badge = document.getElementById('widgetRuntimeBadge');
+      const label = document.getElementById('widgetBtnLabel');
+      const btn   = document.getElementById('openWidgetBtn');
+      if (!badge || !label || !btn) return;
+
+      if (window.electronAPI) {
+        // Green dot — native desktop widget available
+        badge.style.background = '#4ade80';
+        badge.title = 'Electron: native desktop widget';
+        label.textContent = 'Desktop Widget';
+        btn.title = 'Open as a native desktop window (always on top, draggable anywhere)';
+        console.log('[Runtime] Electron detected — window.electronAPI is available');
+      } else {
+        // Gray dot — browser-only, in-page overlay will be used
+        badge.style.background = '#9ca3af';
+        badge.title = 'Browser-only mode — run via: npm run electron';
+        label.textContent = 'Widget';
+        btn.title = 'In-page widget (browser mode). Run "npm run electron" for a true desktop widget.';
+        console.warn('[Runtime] No Electron API — running in plain browser. ' +
+          'To get the native desktop widget, launch with: npm run electron');
+      }
+    }
+
+    // Run the badge update as soon as the DOM is ready
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', initWidgetButtonBadge);
+    } else {
+      initWidgetButtonBadge();
+    }
+
+    const WIDGET_POS_KEY  = 'compactWidgetPos';
+    const widget          = document.getElementById('compactWidget');
+    const wTimeEl         = document.getElementById('wTime');
+    const wStatusEl       = document.getElementById('wStatus');
+    const wSubjectEl      = document.getElementById('wSubject');
+    const wStartBtn       = document.getElementById('wStartBtn');
+    const wPauseBtn       = document.getElementById('wPauseBtn');
+    const wResumeBtn      = document.getElementById('wResumeBtn');
+
+    /** Update the widget clock face + status + subject label */
+    function updateWidget() {
+      if (!widget || widget.style.display === 'none') return;
+
+      // Time display — live-computed same as the main display
+      let currentElapsed = timerElapsedSeconds;
+      if (timerState === 'running' && timerStartTime) {
+        currentElapsed += Math.floor((Date.now() - timerStartTime) / 1000);
+      }
+      wTimeEl.textContent = formatTime(currentElapsed);
+
+      // Subject
+      wSubjectEl.textContent = timerState === 'ready'
+        ? '📚 No subject'
+        : '📚 ' + (timerSubject || 'No subject');
+
+      // Status dot + button visibility
+      wStartBtn.style.display  = 'none';
+      wPauseBtn.style.display  = 'none';
+      wResumeBtn.style.display = 'none';
+
+      if (timerState === 'ready') {
+        wStatusEl.textContent = 'Ready';
+        wStatusEl.style.color = '#666';
+        wStartBtn.style.display = 'flex';
+      } else if (timerState === 'running') {
+        wStatusEl.textContent = '● Running';
+        wStatusEl.style.color = '#4ade80';
+        wPauseBtn.style.display = 'flex';
+      } else if (timerState === 'paused') {
+        wStatusEl.textContent = '⏸ Paused';
+        wStatusEl.style.color = '#fbbf24';
+        wResumeBtn.style.display = 'flex';
+      }
+    }
+
+    // Widget start — needs a subject from the main input
+    function wStart() {
+      const subject = timerSubjectInput.value.trim();
+      if (!subject) {
+        // Bring focus back to main timer and show error
+        restoreFullTimer();
+        setTimeout(() => {
+          showSubjectError('Enter a subject before starting.');
+          timerSubjectInput.focus();
+        }, 80);
+        return;
+      }
+      startTimer();         // calls the main timer function
+      updateWidget();
+    }
+
+    function wPause()  { stopTimer();  updateWidget(); }  // stopTimer() toggles pause/resume
+    function wResume() { stopTimer();  updateWidget(); }
+    function wReset()  { resetTimer(); updateWidget(); }
+
+    /** Open the compact widget (show it, restore saved position/size) */
+    function openCompactWidget() {
+      // Restore saved position/size
+      try {
+        const saved = JSON.parse(localStorage.getItem(WIDGET_POS_KEY) || 'null');
+        if (saved) {
+          if (saved.top  != null) widget.style.top    = saved.top  + 'px';
+          if (saved.left != null) widget.style.left   = saved.left + 'px';
+          // Only restore right/bottom if position was saved; clear defaults
+          if (saved.top  != null) widget.style.right  = 'unset';
+          if (saved.width  != null) widget.style.width  = saved.width  + 'px';
+          if (saved.height != null) widget.style.height = saved.height + 'px';
+        }
+      } catch (_) {}
+
+      widget.style.display = 'block';
+      updateWidget();
+
+      // Clamp to viewport so it doesn't open off-screen
+      requestAnimationFrame(clampWidgetToViewport);
+    }
+
+    /** Close widget — does NOT touch timer state at all */
+    function closeCompactWidget() {
+      saveWidgetPosition();
+      widget.style.display = 'none';
+    }
+
+    /** Restore full timer view: scroll the timer card into view and close widget */
+    function restoreFullTimer() {
+      closeCompactWidget();
+      // Scroll main timer card into view smoothly
+      const timerCard = timerDisplay && timerDisplay.closest
+        ? timerDisplay.closest('.bg-white, .dark\\:bg-gray-800')
+        : null;
+      if (timerCard) {
+        timerCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+
+    /** Save current widget position/size to localStorage */
+    function saveWidgetPosition() {
+      if (!widget) return;
+      const rect = widget.getBoundingClientRect();
+      localStorage.setItem(WIDGET_POS_KEY, JSON.stringify({
+        top:    Math.round(rect.top),
+        left:   Math.round(rect.left),
+        width:  Math.round(rect.width),
+        height: Math.round(rect.height)
+      }));
+    }
+
+    /** Keep widget fully inside the viewport */
+    function clampWidgetToViewport() {
+      const rect = widget.getBoundingClientRect();
+      const vw   = window.innerWidth;
+      const vh   = window.innerHeight;
+      let top  = rect.top;
+      let left = rect.left;
+      if (left + rect.width > vw)  left = vw  - rect.width  - 8;
+      if (top  + rect.height > vh) top  = vh  - rect.height - 8;
+      if (left < 8)  left = 8;
+      if (top  < 8)  top  = 8;
+      widget.style.top  = top  + 'px';
+      widget.style.left = left + 'px';
+      widget.style.right = 'unset';
+    }
+
+    // ------------------------------------------------------------------
+    // Drag logic — mousedown on title bar
+    // ------------------------------------------------------------------
+    (function () {
+      const titleBar = document.getElementById('widgetTitleBar');
+      let dragging = false, ox = 0, oy = 0;
+
+      titleBar.addEventListener('mousedown', function (e) {
+        // Ignore clicks on the inner buttons
+        if (e.target !== titleBar && e.target !== wSubjectEl) return;
+        dragging = true;
+        const rect = widget.getBoundingClientRect();
+        ox = e.clientX - rect.left;
+        oy = e.clientY - rect.top;
+        widget.style.right  = 'unset';
+        widget.style.bottom = 'unset';
+        e.preventDefault();
+      });
+
+      document.addEventListener('mousemove', function (e) {
+        if (!dragging) return;
+        let newLeft = e.clientX - ox;
+        let newTop  = e.clientY - oy;
+        // Clamp
+        const vw = window.innerWidth, vh = window.innerHeight;
+        const w  = widget.offsetWidth, h = widget.offsetHeight;
+        newLeft = Math.max(0, Math.min(newLeft, vw - w));
+        newTop  = Math.max(0, Math.min(newTop,  vh - h));
+        widget.style.left = newLeft + 'px';
+        widget.style.top  = newTop  + 'px';
+      });
+
+      document.addEventListener('mouseup', function () {
+        if (dragging) { dragging = false; saveWidgetPosition(); }
+      });
+
+      // Touch support
+      titleBar.addEventListener('touchstart', function (e) {
+        if (e.target !== titleBar && e.target !== wSubjectEl) return;
+        dragging = true;
+        const rect = widget.getBoundingClientRect();
+        ox = e.touches[0].clientX - rect.left;
+        oy = e.touches[0].clientY - rect.top;
+        widget.style.right  = 'unset';
+        widget.style.bottom = 'unset';
+      }, { passive: true });
+
+      document.addEventListener('touchmove', function (e) {
+        if (!dragging) return;
+        const vw = window.innerWidth, vh = window.innerHeight;
+        const w  = widget.offsetWidth, h = widget.offsetHeight;
+        let newLeft = e.touches[0].clientX - ox;
+        let newTop  = e.touches[0].clientY - oy;
+        newLeft = Math.max(0, Math.min(newLeft, vw - w));
+        newTop  = Math.max(0, Math.min(newTop,  vh - h));
+        widget.style.left = newLeft + 'px';
+        widget.style.top  = newTop  + 'px';
+      }, { passive: true });
+
+      document.addEventListener('touchend', function () {
+        if (dragging) { dragging = false; saveWidgetPosition(); }
+      });
+    })();
+
+    // ------------------------------------------------------------------
+    // Resize observer — save whenever the user resizes the widget
+    // ------------------------------------------------------------------
+    if (typeof ResizeObserver !== 'undefined') {
+      new ResizeObserver(() => {
+        if (widget.style.display !== 'none') saveWidgetPosition();
+      }).observe(widget);
+    }
+
+    // ------------------------------------------------------------------
+    // Patch the existing tick so the widget also refreshes every 100 ms
+    // ------------------------------------------------------------------
+    const _origStartTick = startTimerTick;
+    startTimerTick = function () {
+      _origStartTick();
+      // The existing interval already calls updateDisplay() + saveTimerState().
+      // We piggyback widget update inside timerIntervalId by patching the tick.
+    };
+
+    // Simpler: hook into updateDisplay so widget is always in sync
+    const _origUpdateDisplay = updateDisplay;
+    updateDisplay = function () {
+      _origUpdateDisplay();
+      updateWidget();
+    };
+
+    // Also hook updateUI so button states stay in sync
+    const _origUpdateUI = updateUI;
+    updateUI = function () {
+      _origUpdateUI();
+      updateWidget();
+    };
+
+    // Button hover micro-animations
+    [wStartBtn, wPauseBtn, wResumeBtn].forEach(btn => {
+      btn.addEventListener('mouseenter', () => { btn.style.transform = 'scale(1.08)'; });
+      btn.addEventListener('mouseleave', () => { btn.style.transform = 'scale(1)';    });
+      btn.addEventListener('mousedown',  () => { btn.style.transform = 'scale(0.94)'; });
+      btn.addEventListener('mouseup',    () => { btn.style.transform = 'scale(1.08)'; });
+    });
+
+    // ==========================================================================
+    // END COMPACT WIDGET
     // ==========================================================================
   </script>
 

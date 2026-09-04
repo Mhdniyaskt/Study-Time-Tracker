@@ -1186,21 +1186,14 @@ app.use((err, req, res, next) => {
  * - For packaged .exe: .env file must be in same directory as executable
  */
 
-// Validate required environment variables
+// Set safe local default for MONGODB_URI if not provided
+const DEFAULT_MONGODB_URI = 'mongodb://127.0.0.1:27017/study_tracker';
 if (!process.env.MONGODB_URI) {
-  const msg = [
-    "❌ MONGODB_URI is not set in environment variables",
-    `Checked for .env file at: ${envPath}`,
-    "Please create a .env file in the same directory as the application with:",
-    "  MONGODB_URI=mongodb://localhost:27017/study_tracker",
-    "See .env.example for reference",
-  ].join('\n');
-  console.error(msg);
-  // In Electron we throw so the main process can show a dialog rather than killing the app
-  if (isElectron) {
-    throw new Error(msg);
-  }
-  process.exit(1);
+  console.log("ℹ️  MONGODB_URI not set in environment - using local default");
+  console.log(`   Default: ${DEFAULT_MONGODB_URI}`);
+  console.log(`   Checked for .env file at: ${envPath}`);
+  console.log("   To use a custom database, set MONGODB_URI in .env file");
+  process.env.MONGODB_URI = DEFAULT_MONGODB_URI;
 }
 
 // Log startup information
@@ -1252,14 +1245,29 @@ mongoose
   })
   .catch((err) => {
     console.error("❌ MongoDB connection failed:", err.message);
+    
+    const isLocalhost = process.env.MONGODB_URI.includes('127.0.0.1') || process.env.MONGODB_URI.includes('localhost');
+    
+    if (isLocalhost) {
+      console.error("\n⚠️  Cannot connect to local MongoDB server");
+      console.error("Please ensure MongoDB is installed and running:");
+      console.error("  • Install: https://www.mongodb.com/try/download/community");
+      console.error("  • Start service:");
+      console.error("    Windows: net start MongoDB");
+      console.error("    Mac: brew services start mongodb-community");
+      console.error("    Linux: sudo systemctl start mongod");
+    } else {
+      console.error("\nPlease check:");
+      console.error("  1. MongoDB server is running");
+      console.error("  2. MONGODB_URI is set correctly");
+      console.error("  3. Network connection is available");
+    }
+    
     if (isDevelopment) {
-      console.error("Connection string pattern:", process.env.MONGODB_URI ? process.env.MONGODB_URI.replace(/\/\/.*@/, '//<credentials>@') : 'NOT SET');
+      console.error("\nConnection string:", process.env.MONGODB_URI.replace(/\/\/.*@/, '//<credentials>@'));
       console.error(err.stack);
     }
-    console.error("Please check:");
-    console.error("  1. MongoDB is running");
-    console.error("  2. MONGODB_URI is set correctly in .env file");
-    console.error("  3. Network connection is available");
+    
     console.error("\nExiting...");
     // In Electron we must not call process.exit() — Electron handles shutdown
     if (!isElectron) {

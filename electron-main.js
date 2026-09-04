@@ -1,407 +1,431 @@
 /**
  * Electron Main Process
  *
- * Loads the existing Express server IN-PROCESS using Electron's bundled
- * Node.js runtime. No external `node` binary is required — the packaged
- * application is fully self-contained.
- *
  * Architecture:
  *   Electron main process
- *     └─ dynamic import('./server.js')   <── Express starts here, same process
- *     └─ BrowserWindow → http://localhost:3000
- *     └─ Floating Timer Widget (frameless, always-on-top)
- *     └─ Shared Timer State (IPC communication)
+ *     └─ dynamic import('./server.js')      ← Express + MongoDB, same process
+ *     └─ mainWindow      BrowserWindow      ← http://localhost:3000
+ *     └─ widgetWindow    BrowserWindow      ← floating-timer.html
+ *                                              frameless · alwaysOnTop · resizable
+ *                                              survives main-window minimize
+ *                                              position/size persisted via JSON file
  *
- * Development:   npm run electron-dev   (shows console, --dev flag)
- * Production:    npm run electron        (no console window)
- * Build:         npm run dist            (NSIS installer)
+ * IPC channels (renderer → main):
+ *   open-floating-widget   show/create the widget
+ *   close-floating-widget  hide the widget (does NOT touch timer state)
+ *   focus-main-window      un-minimize + focus the main window
+ *   timer-action           start | stop | pause | resume | reset | stop-and-save | update-state
+ *   request-timer-state    main replies with current sharedTimerState
+ *   save-widget-bounds     persist { x, y, width, height }
+ *   load-widget-bounds     (invoke) return saved bounds or null
+ *   minimize-window        minimize the main window
+ *
+ * IPC channels (main → renderer):
+ *   timer-state-update     broadcast sharedTimerState to all windows
+ *   save-timer-session     ask dashboard to POST /timer/save
  */
 
-import { app, BrowserWindow, dialog, ipcMain, Menu } from 'electron';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
+import { app, BrowserWindow, ipcMain, Menu, dialog } from 'electron';
+import { fileURLToPath }  from 'url';
+import { dirname, join }  from 'path';
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
 import http from 'http';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname  = dirname(__filename);
 
-const PORT = process.env.PORT || 3000;
+const PORT  = process.env.PORT || 3000;
 const isDev = process.argv.includes('--dev') || process.env.NODE_ENV === 'development';
 
-let mainWindow = null;
-let floatingTimerWindow = null;
+// ---------------------------------------------------------------------------
+// Window references
+// ---------------------------------------------------------------------------
+let mainWindow   = null;
+let widgetWindow = null;
 
 // ---------------------------------------------------------------------------
-// Shared Timer State - Single source of truth
+// Widget bounds persistence
+// We store bounds next to the user-data directory so they survive updates.
 // ---------------------------------------------------------------------------
-let sharedTimerState = {
-  state: 'ready',        // 'ready' | 'running' | 'stopped'
-  subject: '',
-  startTime: null,
-  elapsedSeconds: 0,
-  isPaused: false
-};
+function boundsFilePath() {
+  const dir = app.getPath('userData');
+  return join(dir, 'widget-bounds.json');
+}
 
-function broadcastTimerState() {
-  const state = { ...sharedTimerState };
-  
-  if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.webContents.send('timer-state-update', state);
-  }
-  
-  if (floatingTimerWindow && !floatingTimerWindow.isDestroyed()) {
-    floatingTimerWindow.webContents.send('timer-state-update', state);
+function loadWidgetBounds() {
+  try {
+    const p = boundsFilePath();
+    if (existsSync(p)) {
+      return JSON.parse(readFileSync(p, 'utf8'));
+    }
+  } catch (_) {}
+  return null;
+}
+
+function saveWidgetBounds(bounds) {
+  try {
+    const dir = app.getPath('userData');
+    if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+    writeFileSync(boundsFilePath(), JSON.stringify(bounds), 'utf8');
+  } catch (err) {
+    console.warn('Could not save widget bounds:', err.message);
   }
 }
 
 // ---------------------------------------------------------------------------
-// IPC Handlers for Timer Actions
+// Shared timer state — single source of truth for both windows
 // ---------------------------------------------------------------------------
-ipcMain.on('timer-action', (event, { action, data }) => {
+let sharedTimerState = {
+  state:          'ready',   // 'ready' | 'running' | 'paused'
+  subject:        '',
+  startTime:      null,      // Date.now() timestamp of last start/resume
+  elapsedSeconds: 0,
+  isPaused:       false
+};
+
+function broadcastTimerState() {
+  const snapshot = { ...sharedTimerState };
+  if (mainWindow   && !mainWindow.isDestroyed())   mainWindow.webContents.send('timer-state-update', snapshot);
+  if (widgetWindow && !widgetWindow.isDestroyed())  widgetWindow.webContents.send('timer-state-update', snapshot);
+}
+
+// ---------------------------------------------------------------------------
+// IPC — timer actions
+// ---------------------------------------------------------------------------
+ipcMain.on('timer-action', (_event, { action, data }) => {
   const now = Date.now();
-  
+
   switch (action) {
+
     case 'start':
       if (sharedTimerState.state !== 'ready') break;
-      sharedTimerState.state = 'running';
-      sharedTimerState.subject = data.subject || '';
-      sharedTimerState.startTime = now;
+      sharedTimerState.state          = 'running';
+      sharedTimerState.subject        = (data && data.subject) ? data.subject : '';
+      sharedTimerState.startTime      = now;
       sharedTimerState.elapsedSeconds = 0;
-      sharedTimerState.isPaused = false;
+      sharedTimerState.isPaused       = false;
       break;
-      
-    case 'stop':
+
+    case 'stop':   // pause (the main-window "Stop" button toggles pause/resume)
       if (sharedTimerState.state !== 'running') break;
-      // Calculate final elapsed time
       if (!sharedTimerState.isPaused && sharedTimerState.startTime) {
-        const additionalSeconds = Math.floor((now - sharedTimerState.startTime) / 1000);
-        sharedTimerState.elapsedSeconds += additionalSeconds;
+        sharedTimerState.elapsedSeconds += Math.floor((now - sharedTimerState.startTime) / 1000);
       }
-      sharedTimerState.state = 'stopped';
+      sharedTimerState.isPaused  = true;
       sharedTimerState.startTime = null;
-      sharedTimerState.isPaused = false;
+      // Map to 'paused' so the widget can render the right buttons
+      sharedTimerState.state = 'paused';
       break;
-      
-    case 'reset':
-      sharedTimerState.state = 'ready';
-      sharedTimerState.subject = '';
-      sharedTimerState.startTime = null;
-      sharedTimerState.elapsedSeconds = 0;
-      sharedTimerState.isPaused = false;
-      break;
-      
+
     case 'pause':
       if (sharedTimerState.state !== 'running' || sharedTimerState.isPaused) break;
-      // Accumulate elapsed time before pausing
       if (sharedTimerState.startTime) {
-        const additionalSeconds = Math.floor((now - sharedTimerState.startTime) / 1000);
-        sharedTimerState.elapsedSeconds += additionalSeconds;
+        sharedTimerState.elapsedSeconds += Math.floor((now - sharedTimerState.startTime) / 1000);
       }
-      sharedTimerState.isPaused = true;
+      sharedTimerState.isPaused  = true;
       sharedTimerState.startTime = null;
+      sharedTimerState.state     = 'paused';
       break;
-      
+
     case 'resume':
-      if (sharedTimerState.state !== 'running' || !sharedTimerState.isPaused) break;
-      sharedTimerState.isPaused = false;
+      if (sharedTimerState.state !== 'paused') break;
+      sharedTimerState.isPaused  = false;
       sharedTimerState.startTime = now;
+      sharedTimerState.state     = 'running';
       break;
-      
-    case 'stop-and-save':
-      if (sharedTimerState.state !== 'running') break;
-      // Calculate final elapsed time
+
+    case 'reset':
+      sharedTimerState.state          = 'ready';
+      sharedTimerState.subject        = '';
+      sharedTimerState.startTime      = null;
+      sharedTimerState.elapsedSeconds = 0;
+      sharedTimerState.isPaused       = false;
+      break;
+
+    case 'stop-and-save': {
+      // Compute final elapsed
       let finalElapsed = sharedTimerState.elapsedSeconds;
       if (!sharedTimerState.isPaused && sharedTimerState.startTime) {
-        const additionalSeconds = Math.floor((now - sharedTimerState.startTime) / 1000);
-        finalElapsed += additionalSeconds;
+        finalElapsed += Math.floor((now - sharedTimerState.startTime) / 1000);
       }
-      
-      // Send save request to main window (which has access to the Express server)
+      // Ask the dashboard renderer to call /timer/save (it has the cookie session)
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send('save-timer-session', {
-          subject: sharedTimerState.subject,
+          subject:        sharedTimerState.subject,
           elapsedSeconds: finalElapsed
         });
       }
-      
-      // Reset timer state after save
-      sharedTimerState.state = 'ready';
-      sharedTimerState.subject = '';
-      sharedTimerState.startTime = null;
+      // Reset immediately; the dashboard will reload on success
+      sharedTimerState.state          = 'ready';
+      sharedTimerState.subject        = '';
+      sharedTimerState.startTime      = null;
       sharedTimerState.elapsedSeconds = 0;
-      sharedTimerState.isPaused = false;
+      sharedTimerState.isPaused       = false;
       break;
-      
+    }
+
     case 'update-state':
-      // Allow main window to update the shared state
+      // Dashboard syncs its localStorage state into the shared state
       if (data) {
-        sharedTimerState = { ...sharedTimerState, ...data };
+        // Map localStorage timerState ('running'/'paused'/'ready') to sharedTimerState
+        if (data.timerState !== undefined) sharedTimerState.state          = data.timerState;
+        if (data.state      !== undefined) sharedTimerState.state          = data.state;
+        if (data.subject    !== undefined) sharedTimerState.subject        = data.subject;
+        if (data.startTime  !== undefined) sharedTimerState.startTime      = data.startTime;
+        if (data.elapsedSeconds !== undefined) sharedTimerState.elapsedSeconds = data.elapsedSeconds;
+        // Derive isPaused from state when not explicitly provided
+        sharedTimerState.isPaused = (sharedTimerState.state === 'paused');
       }
       break;
   }
-  
+
   broadcastTimerState();
 });
 
 ipcMain.on('request-timer-state', (event) => {
-  event.reply('timer-state-update', sharedTimerState);
+  event.reply('timer-state-update', { ...sharedTimerState });
+});
+
+// ---------------------------------------------------------------------------
+// IPC — widget window lifecycle
+// ---------------------------------------------------------------------------
+ipcMain.on('open-floating-widget', () => {
+  openWidgetWindow();
 });
 
 ipcMain.on('close-floating-widget', () => {
-  if (floatingTimerWindow && !floatingTimerWindow.isDestroyed()) {
-    floatingTimerWindow.hide();
+  if (widgetWindow && !widgetWindow.isDestroyed()) {
+    // Save current bounds before hiding
+    saveWidgetBounds(widgetWindow.getBounds());
+    widgetWindow.hide();
   }
 });
 
+ipcMain.on('focus-main-window', () => {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.focus();
+  }
+});
+
+ipcMain.on('minimize-window', () => {
+  if (mainWindow && !mainWindow.isDestroyed()) mainWindow.minimize();
+});
+
 // ---------------------------------------------------------------------------
-// Resolve the correct .env path for the packaged app.
-//
-// When electron-builder packs the app into an asar, __dirname inside the
-// asar is something like:  C:\…\resources\app.asar
-// process.resourcesPath is: C:\…\resources
-//
-// We want to find the .env file next to the executable, which lives at:
-//   app.getPath('exe') → C:\…\Study Time Tracker.exe
-// So the sibling directory is: dirname(app.getPath('exe'))
+// IPC — widget bounds persistence (invoke = returns a value)
+// ---------------------------------------------------------------------------
+ipcMain.on('save-widget-bounds', (_event, bounds) => {
+  saveWidgetBounds(bounds);
+});
+
+ipcMain.handle('load-widget-bounds', () => {
+  return loadWidgetBounds();
+});
+
+// ---------------------------------------------------------------------------
+// Create / show the floating widget window
+// ---------------------------------------------------------------------------
+function openWidgetWindow() {
+  // If the window already exists, just show + focus it
+  if (widgetWindow && !widgetWindow.isDestroyed()) {
+    widgetWindow.show();
+    widgetWindow.focus();
+    return;
+  }
+
+  // Restore last known bounds, fall back to sensible defaults
+  const saved   = loadWidgetBounds();
+  const bounds  = {
+    x:      saved ? saved.x      : undefined,   // undefined → Electron centres it
+    y:      saved ? saved.y      : undefined,
+    width:  saved ? Math.max(220, saved.width)  : 260,
+    height: saved ? Math.max(180, saved.height) : 230,
+  };
+
+  widgetWindow = new BrowserWindow({
+    x:               bounds.x,
+    y:               bounds.y,
+    width:           bounds.width,
+    height:          bounds.height,
+    minWidth:        200,
+    minHeight:       170,
+    frame:           false,          // no OS titlebar — we draw our own
+    transparent:     false,
+    alwaysOnTop:     true,           // stays above every other window
+    resizable:       true,           // user can resize
+    skipTaskbar:     true,           // no taskbar entry
+    backgroundColor: '#1a1a1a',
+    webPreferences: {
+      nodeIntegration:  false,
+      contextIsolation: true,
+      preload:          join(__dirname, 'preload.js'),
+    },
+  });
+
+  widgetWindow.loadFile('floating-timer.html');
+
+  // Keep alwaysOnTop even when the main window is focused
+  widgetWindow.setAlwaysOnTop(true, 'floating');
+
+  // Send current timer state as soon as the widget is ready
+  widgetWindow.webContents.once('did-finish-load', () => {
+    widgetWindow.webContents.send('timer-state-update', { ...sharedTimerState });
+  });
+
+  // Persist bounds whenever the user moves or resizes the widget
+  widgetWindow.on('moved',   () => { if (!widgetWindow.isDestroyed()) saveWidgetBounds(widgetWindow.getBounds()); });
+  widgetWindow.on('resized', () => { if (!widgetWindow.isDestroyed()) saveWidgetBounds(widgetWindow.getBounds()); });
+
+  widgetWindow.on('closed', () => {
+    widgetWindow = null;
+  });
+
+  if (isDev) widgetWindow.webContents.openDevTools({ mode: 'detach' });
+}
+
+// ---------------------------------------------------------------------------
+// Create the main application window
+// ---------------------------------------------------------------------------
+function createMainWindow() {
+  mainWindow = new BrowserWindow({
+    width:  1400,
+    height: 900,
+    show:   false,
+    webPreferences: {
+      nodeIntegration:  false,
+      contextIsolation: true,
+      preload:          join(__dirname, 'preload.js'),
+    },
+  });
+
+  mainWindow.loadURL(`http://localhost:${PORT}`);
+
+  mainWindow.once('ready-to-show', () => {
+    mainWindow.show();
+    buildAppMenu();
+  });
+
+  mainWindow.on('closed', () => {
+    mainWindow = null;
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Application menu
+// ---------------------------------------------------------------------------
+function buildAppMenu() {
+  const isMac = process.platform === 'darwin';
+
+  const template = [
+    ...(isMac ? [{ label: app.getName(), submenu: [
+      { role: 'about' }, { type: 'separator' },
+      { role: 'services' }, { type: 'separator' },
+      { role: 'hide' }, { role: 'hideOthers' }, { role: 'unhide' },
+      { type: 'separator' }, { role: 'quit' }
+    ]}] : []),
+
+    { label: 'File', submenu: [ isMac ? { role: 'close' } : { role: 'quit' } ] },
+
+    { label: 'Edit', submenu: [
+      { role: 'undo' }, { role: 'redo' }, { type: 'separator' },
+      { role: 'cut' }, { role: 'copy' }, { role: 'paste' },
+      ...( isMac ? [
+        { role: 'pasteAndMatchStyle' }, { role: 'delete' },
+        { role: 'selectAll' }, { type: 'separator' },
+        { label: 'Speech', submenu: [{ role: 'startSpeaking' }, { role: 'stopSpeaking' }] }
+      ] : [ { role: 'delete' }, { type: 'separator' }, { role: 'selectAll' } ])
+    ]},
+
+    { label: 'View', submenu: [
+      {
+        label:       'Show Timer Widget',
+        accelerator: 'CmdOrCtrl+T',
+        click:       () => openWidgetWindow(),
+      },
+      {
+        label:       'Hide Timer Widget',
+        accelerator: 'CmdOrCtrl+Shift+T',
+        click:       () => {
+          if (widgetWindow && !widgetWindow.isDestroyed()) {
+            saveWidgetBounds(widgetWindow.getBounds());
+            widgetWindow.hide();
+          }
+        },
+      },
+      { type: 'separator' },
+      { role: 'reload' }, { role: 'forceReload' }, { role: 'toggleDevTools' },
+      { type: 'separator' },
+      { role: 'resetZoom' }, { role: 'zoomIn' }, { role: 'zoomOut' },
+      { type: 'separator' }, { role: 'togglefullscreen' },
+    ]},
+
+    { label: 'Window', submenu: [
+      { role: 'minimize' }, { role: 'close' },
+      ...(isMac ? [{ type: 'separator' }, { role: 'front' }, { type: 'separator' }, { role: 'window' }] : []),
+    ]},
+  ];
+
+  Menu.setApplicationMenu(Menu.buildFromTemplate(template));
+}
+
+// ---------------------------------------------------------------------------
+// Env path helper (packaged vs dev)
 // ---------------------------------------------------------------------------
 function resolveEnvPath() {
-  if (app.isPackaged) {
-    // Installed app: .env sits beside the .exe
-    return join(dirname(app.getPath('exe')), '.env');
-  }
-  // Development: .env is in the project root
+  if (app.isPackaged) return join(dirname(app.getPath('exe')), '.env');
   return join(__dirname, '.env');
 }
 
 // ---------------------------------------------------------------------------
-// Poll localhost until the Express server responds, then resolve.
+// Probe whether Express is already listening on PORT (e.g. `npm run dev`)
+// ---------------------------------------------------------------------------
+function isServerAlreadyRunning(url) {
+  return new Promise((resolve) => {
+    http.get(url, (res) => { res.resume(); resolve(true); })
+        .on('error', () => resolve(false));
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Wait for Express to become ready (used after in-process start)
 // ---------------------------------------------------------------------------
 function waitForServer(url, timeoutMs = 30000) {
   return new Promise((resolve, reject) => {
     const deadline = Date.now() + timeoutMs;
-
     const check = () => {
-      http.get(url, (res) => {
-        // Any HTTP response means the server is up
-        res.resume(); // discard body
-        resolve();
-      }).on('error', () => {
-        if (Date.now() >= deadline) {
-          reject(new Error(`Server did not become ready within ${timeoutMs}ms`));
-        } else {
-          setTimeout(check, 150);
-        }
-      });
+      http.get(url, (res) => { res.resume(); resolve(); })
+        .on('error', () => {
+          if (Date.now() >= deadline) reject(new Error(`Server not ready within ${timeoutMs}ms`));
+          else setTimeout(check, 150);
+        });
     };
-
     check();
   });
 }
 
 // ---------------------------------------------------------------------------
-// Start the Express server by importing server.js IN-PROCESS.
-//
-// Because server.js is an ES module that calls mongoose.connect() +
-// app.listen() as top-level side-effects, a dynamic import() is all that's
-// needed to start it.  Electron's own Node.js runtime executes it —
-// no external `node` binary is involved.
+// Start Express in-process OR attach to an already-running server
 // ---------------------------------------------------------------------------
 async function startServer() {
-  // Inject the correct .env path so server.js picks up the right file
-  // regardless of the working directory at runtime.
-  process.env.ELECTRON_ENV_PATH = resolveEnvPath();
+  const serverUrl = `http://localhost:${PORT}`;
 
-  // In the packaged asar the path to server.js is relative to this file.
-  const serverModule = new URL('./server.js', import.meta.url).href;
-
-  console.log(`Loading server module: ${serverModule}`);
-  await import(serverModule);
-
-  // Give app.listen() time to bind, then confirm the port is open.
-  await waitForServer(`http://localhost:${PORT}`);
-  console.log(`Express server ready on port ${PORT}`);
-}
-
-// ---------------------------------------------------------------------------
-// Create the desktop window
-// ---------------------------------------------------------------------------
-function createWindow() {
-  mainWindow = new BrowserWindow({
-    width: 1400,
-    height: 900,
-    webPreferences: {
-      nodeIntegration: false,
-      contextIsolation: true,
-      preload: join(__dirname, 'preload.js')
-    },
-    show: false, // prevent white flash before content loads
-  });
-
-  mainWindow.loadURL(`http://localhost:${PORT}`);
-
-  mainWindow.on('closed', () => {
-    mainWindow = null;
-  });
-  
-  // Wait for the window to be ready, then create the menu
-  mainWindow.once('ready-to-show', () => {
-    mainWindow.show();
-    // Create application menu after window is ready
-    createApplicationMenu();
-  });
-}
-
-// ---------------------------------------------------------------------------
-// Create floating timer widget window
-// ---------------------------------------------------------------------------
-function createFloatingTimerWindow() {
-  if (floatingTimerWindow && !floatingTimerWindow.isDestroyed()) {
-    floatingTimerWindow.show();
-    floatingTimerWindow.focus();
+  // Guard: if a server is already answering on this port (e.g. `npm run dev`
+  // is running in another terminal), skip the in-process import entirely.
+  // This prevents EADDRINUSE crashes and lets Electron work alongside nodemon.
+  const alreadyUp = await isServerAlreadyRunning(serverUrl);
+  if (alreadyUp) {
+    console.log(`[electron-main] Server already running on port ${PORT} — skipping in-process start.`);
     return;
   }
-  
-  floatingTimerWindow = new BrowserWindow({
-    width: 280,
-    height: 220,
-    frame: false,
-    transparent: false,
-    alwaysOnTop: true,
-    resizable: false,
-    skipTaskbar: true,
-    webPreferences: {
-      nodeIntegration: false,
-      contextIsolation: true,
-      preload: join(__dirname, 'preload.js')
-    },
-    backgroundColor: '#1a1a1a'
-  });
-  
-  // Load the floating timer HTML
-  floatingTimerWindow.loadFile('floating-timer.html');
-  
-  floatingTimerWindow.on('closed', () => {
-    floatingTimerWindow = null;
-  });
-  
-  // Send initial state
-  floatingTimerWindow.webContents.once('did-finish-load', () => {
-    floatingTimerWindow.webContents.send('timer-state-update', sharedTimerState);
-  });
-}
 
-// ---------------------------------------------------------------------------
-// Create application menu
-// ---------------------------------------------------------------------------
-function createApplicationMenu() {
-  const isMac = process.platform === 'darwin';
-  
-  const template = [
-    // App menu (macOS) or File menu (Windows/Linux)
-    ...(isMac ? [{
-      label: app.getName(),
-      submenu: [
-        { role: 'about' },
-        { type: 'separator' },
-        { role: 'services' },
-        { type: 'separator' },
-        { role: 'hide' },
-        { role: 'hideOthers' },
-        { role: 'unhide' },
-        { type: 'separator' },
-        { role: 'quit' }
-      ]
-    }] : []),
-    
-    {
-      label: 'File',
-      submenu: [
-        ...(isMac ? [
-          { role: 'close' }
-        ] : [
-          { role: 'quit' }
-        ])
-      ]
-    },
-    
-    {
-      label: 'Edit',
-      submenu: [
-        { role: 'undo' },
-        { role: 'redo' },
-        { type: 'separator' },
-        { role: 'cut' },
-        { role: 'copy' },
-        { role: 'paste' },
-        ...(isMac ? [
-          { role: 'pasteAndMatchStyle' },
-          { role: 'delete' },
-          { role: 'selectAll' },
-          { type: 'separator' },
-          {
-            label: 'Speech',
-            submenu: [
-              { role: 'startSpeaking' },
-              { role: 'stopSpeaking' }
-            ]
-          }
-        ] : [
-          { role: 'delete' },
-          { type: 'separator' },
-          { role: 'selectAll' }
-        ])
-      ]
-    },
-    
-    {
-      label: 'View',
-      submenu: [
-        {
-          label: 'Show Floating Timer',
-          accelerator: 'CmdOrCtrl+T',
-          click: () => {
-            createFloatingTimerWindow();
-          }
-        },
-        {
-          label: 'Hide Floating Timer',
-          accelerator: 'CmdOrCtrl+Shift+T',
-          click: () => {
-            if (floatingTimerWindow && !floatingTimerWindow.isDestroyed()) {
-              floatingTimerWindow.hide();
-            }
-          }
-        },
-        { type: 'separator' },
-        { role: 'reload' },
-        { role: 'forceReload' },
-        { role: 'toggleDevTools' },
-        { type: 'separator' },
-        { role: 'resetZoom' },
-        { role: 'zoomIn' },
-        { role: 'zoomOut' },
-        { type: 'separator' },
-        { role: 'togglefullscreen' }
-      ]
-    },
-    
-    {
-      label: 'Window',
-      submenu: [
-        { role: 'minimize' },
-        { role: 'close' },
-        ...(isMac ? [
-          { type: 'separator' },
-          { role: 'front' },
-          { type: 'separator' },
-          { role: 'window' }
-        ] : [])
-      ]
-    }
-  ];
-
-  const menu = Menu.buildFromTemplate(template);
-  Menu.setApplicationMenu(menu);
+  // No server yet — start Express inside this Electron process.
+  process.env.ELECTRON_ENV_PATH = resolveEnvPath();
+  const serverModule = new URL('./server.js', import.meta.url).href;
+  console.log(`[electron-main] Starting in-process server: ${serverModule}`);
+  await import(serverModule);
+  await waitForServer(serverUrl);
+  console.log(`[electron-main] Express ready on port ${PORT}`);
 }
 
 // ---------------------------------------------------------------------------
@@ -410,41 +434,29 @@ function createApplicationMenu() {
 app.whenReady().then(async () => {
   try {
     await startServer();
-    createWindow();
+    createMainWindow();
   } catch (err) {
-    console.error('Fatal: could not start application:', err.message);
-
-    // Show a user-friendly error dialog before quitting
+    console.error('Fatal startup error:', err.message);
     await dialog.showErrorBox(
       'Study Time Tracker – Startup Error',
-      `The application could not start.\n\n${err.message}\n\nPlease make sure:\n` +
+      `The application could not start.\n\n${err.message}\n\n` +
+      `Please make sure:\n` +
       `  • MongoDB is installed and running\n` +
-      `  • A .env file exists beside the application with MONGODB_URI set\n\n` +
-      `Example .env content:\n  MONGODB_URI=mongodb://localhost:27017/studytracker`
+      `  • A .env file exists with MONGODB_URI set\n\n` +
+      `Example:\n  MONGODB_URI=mongodb://localhost:27017/studytracker`
     );
-
     app.quit();
   }
 });
 
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    app.quit();
-  }
+  if (process.platform !== 'darwin') app.quit();
 });
 
 app.on('activate', () => {
-  if (BrowserWindow.getAllWindows().length === 0) {
-    createWindow();
-  }
+  if (BrowserWindow.getAllWindows().length === 0) createMainWindow();
 });
 
-// ---------------------------------------------------------------------------
-// In-process server means no child process to kill — mongoose and the
-// HTTP server share this process.  app.quit() triggers Electron's own
-// shutdown sequence, which ends the process cleanly.
-// ---------------------------------------------------------------------------
 app.on('before-quit', () => {
   console.log('Application closing…');
 });
-

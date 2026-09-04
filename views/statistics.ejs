@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="h-full">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -9,20 +9,95 @@
   <!-- FullCalendar CSS and JS -->
   <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.css" rel="stylesheet" />
   <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
+  <script>
+    // Theme initialization - runs before page renders to prevent flash
+    (function() {
+      const theme = localStorage.getItem('theme') || 
+                   (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+      if (theme === 'dark') {
+        document.documentElement.classList.add('dark');
+      }
+    })();
+    
+    // Configure Tailwind dark mode
+    tailwind.config = {
+      darkMode: 'class',
+    };
+  </script>
+  <style>
+    /* Placeholder text color for dark mode */
+    .dark input::placeholder {
+      color: #9ca3af; /* gray-400 */
+      opacity: 1;
+    }
+    .dark textarea::placeholder {
+      color: #9ca3af; /* gray-400 */
+      opacity: 1;
+    }
+    
+    /* FullCalendar dark mode styles */
+    .dark .fc {
+      color: #f3f4f6;
+    }
+    .dark .fc-theme-standard .fc-scrollgrid {
+      border-color: #374151;
+    }
+    .dark .fc-theme-standard td,
+    .dark .fc-theme-standard th {
+      border-color: #374151;
+    }
+    .dark .fc-theme-standard .fc-scrollgrid-liquid > tbody > tr > td {
+      border-color: #374151;
+    }
+    .dark .fc-col-header-cell {
+      background-color: #1f2937;
+    }
+    .dark .fc-daygrid-day {
+      background-color: #111827;
+    }
+    .dark .fc-daygrid-day:hover {
+      background-color: #1f2937;
+    }
+    .dark .fc-button-primary {
+      background-color: #6366f1;
+      border-color: #6366f1;
+    }
+    .dark .fc-button-primary:hover {
+      background-color: #4f46e5;
+      border-color: #4f46e5;
+    }
+  </style>
 </head>
-<body class="bg-gray-50 min-h-screen">
+<body class="bg-gray-50 dark:bg-gray-900 min-h-screen transition-colors duration-200">
 
   <!-- Header -->
-  <header class="bg-white border-b border-gray-200 sticky top-0 z-10">
+  <header class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-10 transition-colors duration-200">
     <div class="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
       <div>
-        <h1 class="text-2xl font-bold text-indigo-600">Study Statistics</h1>
-        <p class="text-xs text-gray-500">Analyze your study patterns and progress</p>
+        <h1 class="text-2xl font-bold text-indigo-600 dark:text-indigo-400">Study Statistics</h1>
+        <p class="text-xs text-gray-500 dark:text-gray-400">Analyze your study patterns and progress</p>
       </div>
       <div class="flex items-center gap-2">
+        <!-- Theme Toggle -->
+        <button
+          id="themeToggle"
+          onclick="toggleTheme()"
+          class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition"
+          title="Toggle theme">
+          <svg id="themeIconLight" class="w-4 h-4 hidden dark:block" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+          </svg>
+          <svg id="themeIconDark" class="w-4 h-4 block dark:hidden" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+          </svg>
+          <span id="themeText" class="hidden sm:inline">
+            <span class="dark:hidden">Dark</span>
+            <span class="hidden dark:inline">Light</span>
+          </span>
+        </button>
         <a
           href="/"
-          class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition">
+          class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
           </svg>
@@ -30,7 +105,7 @@
         </a>
         <a
           href="/history"
-          class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition">
+          class="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6l4 2m6-2a10 10 0 11-20 0 10 10 0 0120 0z" />
           </svg>
@@ -44,8 +119,8 @@
   <div class="max-w-7xl mx-auto px-4 py-6 space-y-6">
 
     <!-- Period Selector -->
-    <div class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
-      <h2 class="text-lg font-semibold text-gray-700 mb-4">Select Time Period</h2>
+    <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6 shadow-sm transition-colors duration-200">
+      <h2 class="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-4">Select Time Period</h2>
       
       <form method="GET" action="/statistics" id="periodForm" class="space-y-4">
         
@@ -62,32 +137,32 @@
         </div>
 
         <!-- Custom Date Range (Hidden by default) -->
-        <div id="customRange" class="<%= period === 'custom' ? '' : 'hidden' %> grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-gray-50 rounded-lg">
+        <div id="customRange" class="<%= period === 'custom' ? '' : 'hidden' %> grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg transition-colors duration-200">
           <div>
-            <label for="startDate" class="block text-sm font-medium text-gray-600 mb-1">Start Date</label>
+            <label for="startDate" class="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">Start Date</label>
             <input
               type="date"
               id="startDate"
               name="startDate"
               value="<%= startDate %>"
-              class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent transition"
+              class="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg px-3 py-2 text-sm text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent transition"
             />
           </div>
           <div>
-            <label for="endDate" class="block text-sm font-medium text-gray-600 mb-1">End Date</label>
+            <label for="endDate" class="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">End Date</label>
             <input
               type="date"
               id="endDate"
               name="endDate"
               value="<%= endDate %>"
-              class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent transition"
+              class="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 rounded-lg px-3 py-2 text-sm text-gray-700 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent transition"
             />
           </div>
           <div class="flex items-end">
             <button
               type="button"
               onclick="applyCustomRange()"
-              class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 rounded-lg text-sm transition">
+              class="w-full bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 text-white font-medium py-2 rounded-lg text-sm transition">
               Apply Range
             </button>
           </div>
@@ -98,14 +173,14 @@
 
       <!-- Date Range Error -->
       <% if (dateRangeError) { %>
-        <div class="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-          <p class="text-sm text-red-600"><%= dateRangeError %></p>
+        <div class="mt-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+          <p class="text-sm text-red-600 dark:text-red-400"><%= dateRangeError %></p>
         </div>
       <% } %>
 
       <!-- Current Selection -->
-      <div class="mt-4 p-3 bg-indigo-50 border border-indigo-200 rounded-lg">
-        <p class="text-sm text-indigo-700">
+      <div class="mt-4 p-3 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 rounded-lg">
+        <p class="text-sm text-indigo-700 dark:text-indigo-300">
           <strong>Showing statistics for:</strong> <%= periodLabel %>
         </p>
       </div>
@@ -115,81 +190,81 @@
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
       
       <!-- Total Study Time -->
-      <div class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+      <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6 shadow-sm transition-colors duration-200">
         <div class="flex items-center gap-3 mb-2">
-          <div class="bg-indigo-100 rounded-lg p-3">
-            <svg class="w-6 h-6 text-indigo-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <div class="bg-indigo-100 dark:bg-indigo-900 rounded-lg p-3">
+            <svg class="w-6 h-6 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6l4 2m6-2a10 10 0 11-20 0 10 10 0 0120 0z" />
             </svg>
           </div>
-          <span class="text-sm font-medium text-gray-600">Total Study Time</span>
+          <span class="text-sm font-medium text-gray-600 dark:text-gray-300">Total Study Time</span>
         </div>
         <% const totalHours = Math.floor(totalStudyTime / 60); %>
         <% const totalMins = totalStudyTime % 60; %>
-        <p class="text-3xl font-bold text-gray-800">
+        <p class="text-3xl font-bold text-gray-800 dark:text-gray-100">
           <%= totalHours > 0 ? totalHours + 'h ' : '' %><%= totalMins + 'm' %>
         </p>
-        <p class="text-sm text-gray-500 mt-1">
+        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
           <%= (totalStudyTime / 60).toFixed(1) %> hours total
         </p>
       </div>
 
       <!-- Number of Sessions -->
-      <div class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+      <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6 shadow-sm transition-colors duration-200">
         <div class="flex items-center gap-3 mb-2">
-          <div class="bg-emerald-100 rounded-lg p-3">
-            <svg class="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <div class="bg-emerald-100 dark:bg-emerald-900 rounded-lg p-3">
+            <svg class="w-6 h-6 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
           </div>
-          <span class="text-sm font-medium text-gray-600">Sessions</span>
+          <span class="text-sm font-medium text-gray-600 dark:text-gray-300">Sessions</span>
         </div>
-        <p class="text-3xl font-bold text-gray-800"><%= numberOfSessions %></p>
-        <p class="text-sm text-gray-500 mt-1">
+        <p class="text-3xl font-bold text-gray-800 dark:text-gray-100"><%= numberOfSessions %></p>
+        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
           <%= numberOfSessions === 1 ? 'study session' : 'study sessions' %>
         </p>
       </div>
 
       <!-- Average Study Time Per Day -->
-      <div class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+      <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6 shadow-sm transition-colors duration-200">
         <div class="flex items-center gap-3 mb-2">
-          <div class="bg-sky-100 rounded-lg p-3">
-            <svg class="w-6 h-6 text-sky-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <div class="bg-sky-100 dark:bg-sky-900 rounded-lg p-3">
+            <svg class="w-6 h-6 text-sky-600 dark:text-sky-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
             </svg>
           </div>
-          <span class="text-sm font-medium text-gray-600">Avg Per Day</span>
+          <span class="text-sm font-medium text-gray-600 dark:text-gray-300">Avg Per Day</span>
         </div>
         <% const avgHours = Math.floor(averageStudyTimePerDay / 60); %>
         <% const avgMins = Math.round(averageStudyTimePerDay % 60); %>
-        <p class="text-3xl font-bold text-gray-800">
+        <p class="text-3xl font-bold text-gray-800 dark:text-gray-100">
           <%= avgHours > 0 ? avgHours + 'h ' : '' %><%= avgMins + 'm' %>
         </p>
-        <p class="text-sm text-gray-500 mt-1">
+        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
           <%= (averageStudyTimePerDay / 60).toFixed(1) %> hours average
         </p>
       </div>
 
       <!-- Most Studied Subject -->
-      <div class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+      <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6 shadow-sm transition-colors duration-200">
         <div class="flex items-center gap-3 mb-2">
-          <div class="bg-violet-100 rounded-lg p-3">
-            <svg class="w-6 h-6 text-violet-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <div class="bg-violet-100 dark:bg-violet-900 rounded-lg p-3">
+            <svg class="w-6 h-6 text-violet-600 dark:text-violet-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
             </svg>
           </div>
-          <span class="text-sm font-medium text-gray-600">Top Subject</span>
+          <span class="text-sm font-medium text-gray-600 dark:text-gray-300">Top Subject</span>
         </div>
         <% if (subjectStats.length > 0) { %>
-          <p class="text-lg font-bold text-gray-800 truncate"><%= subjectStats[0].subject %></p>
+          <p class="text-lg font-bold text-gray-800 dark:text-gray-100 truncate"><%= subjectStats[0].subject %></p>
           <% const topHours = Math.floor(subjectStats[0].totalMinutes / 60); %>
           <% const topMins = subjectStats[0].totalMinutes % 60; %>
-          <p class="text-sm text-gray-500 mt-1">
+          <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
             <%= topHours > 0 ? topHours + 'h ' : '' %><%= topMins + 'm' %>
           </p>
         <% } else { %>
-          <p class="text-lg font-bold text-gray-400">No data</p>
-          <p class="text-sm text-gray-500 mt-1">Add some sessions</p>
+          <p class="text-lg font-bold text-gray-400 dark:text-gray-500">No data</p>
+          <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Add some sessions</p>
         <% } %>
       </div>
 
@@ -199,14 +274,14 @@
     <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
       
       <!-- Daily Study Time Chart -->
-      <div class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
-        <h2 class="text-lg font-semibold text-gray-700 mb-4">Daily Study Time</h2>
+      <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6 shadow-sm transition-colors duration-200">
+        <h2 class="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-4">Daily Study Time</h2>
         <% if (chartLabels && chartLabels.length > 0) { %>
           <div class="w-full h-80">
             <canvas id="dailyChart"></canvas>
           </div>
         <% } else { %>
-          <div class="text-center py-12 text-gray-400">
+          <div class="text-center py-12 text-gray-400 dark:text-gray-500">
             <svg class="w-12 h-12 mx-auto mb-2" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
             </svg>
@@ -216,14 +291,14 @@
       </div>
 
       <!-- Study by Subject Chart -->
-      <div class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
-        <h2 class="text-lg font-semibold text-gray-700 mb-4">Study by Subject</h2>
+      <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6 shadow-sm transition-colors duration-200">
+        <h2 class="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-4">Study by Subject</h2>
         <% if (subjectChartLabels && subjectChartLabels.length > 0) { %>
           <div class="w-full h-80">
             <canvas id="subjectChart"></canvas>
           </div>
         <% } else { %>
-          <div class="text-center py-12 text-gray-400">
+          <div class="text-center py-12 text-gray-400 dark:text-gray-500">
             <svg class="w-12 h-12 mx-auto mb-2" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
             </svg>
@@ -235,8 +310,8 @@
     </div>
 
     <!-- Calendar View -->
-    <div class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
-      <h2 class="text-lg font-semibold text-gray-700 mb-4">Study Calendar</h2>
+    <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6 shadow-sm transition-colors duration-200">
+      <h2 class="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-4">Study Calendar</h2>
       <div id="calendar" class="study-calendar"></div>
     </div>
 
@@ -244,8 +319,8 @@
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
       
       <!-- Study Time by Subject -->
-      <div class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
-        <h2 class="text-lg font-semibold text-gray-700 mb-4">Study Time by Subject</h2>
+      <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6 shadow-sm transition-colors duration-200">
+        <h2 class="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-4">Study Time by Subject</h2>
         
         <% if (subjectStats.length > 0) { %>
           <%
@@ -263,15 +338,15 @@
               %>
               <div>
                 <div class="flex items-center justify-between mb-2">
-                  <span class="text-sm font-medium text-gray-700"><%= stat.subject %></span>
+                  <span class="text-sm font-medium text-gray-700 dark:text-gray-200"><%= stat.subject %></span>
                   <div class="text-right">
-                    <span class="text-sm font-semibold text-indigo-600"><%= statTimeStr %></span>
-                    <span class="text-xs text-gray-500 ml-2">(<%= percentage %>%)</span>
+                    <span class="text-sm font-semibold text-indigo-600 dark:text-indigo-400"><%= statTimeStr %></span>
+                    <span class="text-xs text-gray-500 dark:text-gray-400 ml-2">(<%= percentage %>%)</span>
                   </div>
                 </div>
-                <div class="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden">
+                <div class="w-full bg-gray-100 dark:bg-gray-700 rounded-full h-2.5 overflow-hidden">
                   <div
-                    class="h-2.5 bg-indigo-500 rounded-full transition-all duration-500"
+                    class="h-2.5 bg-indigo-500 dark:bg-indigo-400 rounded-full transition-all duration-500"
                     style="width: <%= progressWidth %>%">
                   </div>
                 </div>
@@ -279,7 +354,7 @@
             <% }) %>
           </div>
         <% } else { %>
-          <div class="text-center py-8 text-gray-400">
+          <div class="text-center py-8 text-gray-400 dark:text-gray-500">
             <svg class="w-12 h-12 mx-auto mb-2" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
             </svg>
@@ -289,8 +364,8 @@
       </div>
 
       <!-- Daily Study Totals -->
-      <div class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
-        <h2 class="text-lg font-semibold text-gray-700 mb-4">Daily Study Totals</h2>
+      <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6 shadow-sm transition-colors duration-200">
+        <h2 class="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-4">Daily Study Totals</h2>
         
         <% if (dailyTotals.length > 0) { %>
           <div class="space-y-3 max-h-80 overflow-y-auto">
@@ -305,16 +380,16 @@
                   day: "numeric"
                 });
               %>
-              <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                <span class="text-sm font-medium text-gray-700"><%= formattedDate %></span>
-                <span class="text-sm font-semibold text-indigo-600 bg-indigo-100 px-2 py-1 rounded">
+              <div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg transition-colors duration-200">
+                <span class="text-sm font-medium text-gray-700 dark:text-gray-200"><%= formattedDate %></span>
+                <span class="text-sm font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-100 dark:bg-indigo-900 px-2 py-1 rounded">
                   <%= dailyTimeStr %>
                 </span>
               </div>
             <% }) %>
           </div>
         <% } else { %>
-          <div class="text-center py-8 text-gray-400">
+          <div class="text-center py-8 text-gray-400 dark:text-gray-500">
             <svg class="w-12 h-12 mx-auto mb-2" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
             </svg>
@@ -326,14 +401,14 @@
     </div>
 
     <!-- Study Sessions -->
-    <div class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
-      <h2 class="text-lg font-semibold text-gray-700 mb-4">
+    <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6 shadow-sm transition-colors duration-200">
+      <h2 class="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-4">
         Study Sessions (<%= numberOfSessions %> sessions)
       </h2>
 
       <% if (groupedSessions.length === 0) { %>
         <!-- Empty state -->
-        <div class="text-center py-12 text-gray-400">
+        <div class="text-center py-12 text-gray-400 dark:text-gray-500">
           <svg class="w-14 h-14 mx-auto mb-3" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6l4 2m6-2a10 10 0 11-20 0 10 10 0 0120 0z" />
           </svg>
@@ -348,47 +423,47 @@
               const dm = group.total % 60;
               const dailyTotalStr = (dh > 0 ? dh + 'h ' : '') + dm + 'm';
             %>
-            <div class="border border-gray-200 rounded-lg overflow-hidden">
+            <div class="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
 
               <!-- Date header -->
-              <div class="flex items-center justify-between px-4 py-2.5 bg-gray-50 border-b border-gray-200">
-                <span class="text-sm font-semibold text-gray-700"><%= group.label %></span>
-                <span class="text-xs font-medium text-indigo-600 bg-indigo-50 px-2 py-1 rounded">
+              <div class="flex items-center justify-between px-4 py-2.5 bg-gray-50 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600">
+                <span class="text-sm font-semibold text-gray-700 dark:text-gray-200"><%= group.label %></span>
+                <span class="text-xs font-medium text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/40 px-2 py-1 rounded">
                   Total: <%= dailyTotalStr %>
                 </span>
               </div>
 
               <!-- Sessions for this day -->
-              <div class="divide-y divide-gray-100">
+              <div class="divide-y divide-gray-100 dark:divide-gray-700">
                 <% group.sessions.forEach(session => { %>
                   <%
                     const h = Math.floor(session.duration / 60);
                     const m = session.duration % 60;
                     const durationStr = (h > 0 ? h + 'h ' : '') + m + 'm';
                   %>
-                  <div class="px-4 py-3 flex items-center justify-between gap-4 hover:bg-gray-50 transition">
+                  <div class="px-4 py-3 flex items-center justify-between gap-4 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition">
                     <div class="flex items-center gap-3 min-w-0 flex-1">
-                      <div class="bg-indigo-100 text-indigo-600 rounded-lg p-2 shrink-0">
+                      <div class="bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 rounded-lg p-2 shrink-0">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                           <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" />
                         </svg>
                       </div>
-                      <p class="text-sm font-medium text-gray-700 truncate"><%= session.subject %></p>
+                      <p class="text-sm font-medium text-gray-700 dark:text-gray-200 truncate"><%= session.subject %></p>
                     </div>
                     <div class="flex items-center gap-2 shrink-0">
-                      <span class="text-sm font-medium text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded">
+                      <span class="text-sm font-medium text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/40 px-2.5 py-1 rounded">
                         <%= durationStr %>
                       </span>
                       <a
                         href="/study/<%= session._id %>/edit"
-                        class="text-xs text-gray-600 hover:text-indigo-600 hover:bg-indigo-50 border border-gray-300 hover:border-indigo-300 px-2 py-1 rounded transition">
+                        class="text-xs text-gray-600 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 border border-gray-300 dark:border-gray-600 hover:border-indigo-300 dark:hover:border-indigo-500 px-2 py-1 rounded transition">
                         Edit
                       </a>
                       <form method="POST" action="/study/<%= session._id %>?_method=DELETE" class="inline">
                         <button
                           type="submit"
                           onclick="return confirm('Delete this session?')"
-                          class="text-xs text-gray-600 hover:text-red-600 hover:bg-red-50 border border-gray-300 hover:border-red-300 px-2 py-1 rounded transition">
+                          class="text-xs text-gray-600 dark:text-gray-300 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/30 border border-gray-300 dark:border-gray-600 hover:border-red-300 dark:hover:border-red-500 px-2 py-1 rounded transition">
                           Delete
                         </button>
                       </form>
@@ -406,7 +481,7 @@
   </div>
 
   <!-- Footer -->
-  <footer class="text-center py-6 text-gray-400 text-sm">
+  <footer class="text-center py-6 text-gray-400 dark:text-gray-500 text-sm">
     Study Time Tracker &copy; <%= new Date().getFullYear() %>
   </footer>
 
@@ -755,6 +830,14 @@
           }
         }
       });
+    }
+  </script>
+
+  <!-- Theme Toggle Script -->
+  <script>
+    function toggleTheme() {
+      const isDark = document.documentElement.classList.toggle('dark');
+      localStorage.setItem('theme', isDark ? 'dark' : 'light');
     }
   </script>
 

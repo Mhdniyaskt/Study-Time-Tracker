@@ -1,344 +1,330 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Study Timer</title>
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #1a1a1a;
+      --bg-bar:    #111111;
+      --bg-card:   #222222;
+      --border:    rgba(255,255,255,0.07);
+      --txt:       #f0f0f0;
+      --txt-dim:   #666;
+      --txt-sub:   #999;
+      --accent:    #e86c3a;   /* Windows Clock orange */
+      --green:     #4ade80;
+      --amber:     #fbbf24;
+      --radius:    10px;
     }
 
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-      background: #1a1a1a;
-      color: #ffffff;
+    html, body {
+      width: 100%; height: 100%;
+      background: var(--bg);
+      color: var(--txt);
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
       overflow: hidden;
       user-select: none;
-      -webkit-app-region: drag;
     }
 
-    .container {
-      width: 280px;
-      padding: 16px;
-      border-radius: 12px;
-      background: linear-gradient(135deg, #2a2a2a 0%, #1f1f1f 100%);
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    /* ── Layout ─────────────────────────────────────────── */
+    .root {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
     }
 
-    .header {
+    /* ── Title bar — the only draggable region ───────────── */
+    .titlebar {
       display: flex;
       align-items: center;
-      justify-content: space-between;
-      margin-bottom: 16px;
-      -webkit-app-region: no-drag;
+      gap: 6px;
+      padding: 7px 10px 6px;
+      background: var(--bg-bar);
+      border-bottom: 1px solid var(--border);
+      -webkit-app-region: drag;   /* OS-native drag, works outside app bounds */
+      flex-shrink: 0;
     }
 
-    .subject {
-      font-size: 13px;
-      color: #a0a0a0;
+    .titlebar .subject {
       flex: 1;
+      font-size: 11px;
+      color: var(--txt-sub);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-      padding-right: 8px;
+      -webkit-app-region: drag;
     }
 
-    .subject-icon {
-      font-size: 14px;
-      margin-right: 6px;
-    }
+    /* All interactive elements inside the drag zone must opt-out */
+    .titlebar button { -webkit-app-region: no-drag; }
 
-    .close-btn {
-      width: 24px;
-      height: 24px;
-      border: none;
+    .icon-btn {
+      width: 22px; height: 22px;
       background: transparent;
-      color: #888;
-      font-size: 18px;
-      cursor: pointer;
+      border: none;
       border-radius: 4px;
+      color: var(--txt-dim);
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: background 0.15s, color 0.15s;
+      flex-shrink: 0;
+    }
+    .icon-btn:hover { background: rgba(255,255,255,0.1); color: var(--txt); }
+    .icon-btn svg   { width: 13px; height: 13px; }
+
+    .close-btn:hover { background: rgba(239,68,68,0.25); color: #f87171; }
+
+    /* ── Clock body ───────────────────────────────────────── */
+    .body {
+      flex: 1;
       display: flex;
+      flex-direction: column;
       align-items: center;
       justify-content: center;
-      transition: all 0.2s;
-    }
-
-    .close-btn:hover {
-      background: #333;
-      color: #fff;
-    }
-
-    .timer-display {
-      text-align: center;
-      margin: 20px 0;
+      padding: 10px 14px 4px;
+      gap: 0;
     }
 
     .time {
-      font-size: 42px;
+      font-size: clamp(28px, 8vw, 44px);
       font-weight: 300;
-      letter-spacing: 2px;
+      letter-spacing: 1px;
       font-variant-numeric: tabular-nums;
+      color: var(--txt);
       line-height: 1;
-      margin-bottom: 4px;
     }
 
     .time-labels {
       font-size: 9px;
-      color: #666;
-      letter-spacing: 8px;
+      color: var(--txt-dim);
+      letter-spacing: 0.5em;
       text-transform: uppercase;
-    }
-
-    .status {
+      margin-top: 3px;
+      /* align labels under hr / min / sec digits */
+      width: 100%;
       text-align: center;
-      font-size: 11px;
-      color: #888;
-      margin-bottom: 16px;
-      min-height: 14px;
     }
 
-    .status.running {
-      color: #4ade80;
+    .status-line {
+      font-size: 10px;
+      min-height: 15px;
+      margin-top: 6px;
+      letter-spacing: 0.03em;
     }
+    .status-line.ready   { color: var(--txt-dim); }
+    .status-line.running { color: var(--green);   }
+    .status-line.paused  { color: var(--amber);   }
 
-    .status.paused {
-      color: #fbbf24;
-    }
-
-    .status.stopped {
-      color: #f87171;
-    }
-
+    /* ── Controls ─────────────────────────────────────────── */
     .controls {
       display: flex;
       justify-content: center;
-      gap: 16px;
-      -webkit-app-region: no-drag;
-    }
-
-    .control-btn {
-      width: 48px;
-      height: 48px;
-      border: none;
-      border-radius: 50%;
-      cursor: pointer;
-      display: flex;
       align-items: center;
-      justify-content: center;
-      font-size: 20px;
-      transition: all 0.2s;
-      position: relative;
+      gap: 12px;
+      padding: 8px 14px 12px;
+      flex-shrink: 0;
     }
 
-    .control-btn:disabled {
-      opacity: 0.3;
-      cursor: not-allowed;
+    .ctrl-btn {
+      width: 44px; height: 44px;
+      border-radius: 50%;
+      border: none;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 17px;
+      transition: transform 0.12s, filter 0.12s;
+      flex-shrink: 0;
     }
+    .ctrl-btn:not(:disabled):hover  { transform: scale(1.1);  filter: brightness(1.15); }
+    .ctrl-btn:not(:disabled):active { transform: scale(0.93); }
+    .ctrl-btn:disabled { opacity: 0.25; cursor: default; }
 
-    .control-btn:not(:disabled):hover {
-      transform: scale(1.05);
-    }
+    .btn-start  { background: var(--accent); color: #fff; }
+    .btn-pause  { background: var(--accent); color: #fff; }
+    .btn-resume { background: var(--green);  color: #111; }
+    .btn-reset  { background: #2e2e2e;       color: var(--txt-sub); border: 1px solid var(--border); }
 
-    .control-btn:not(:disabled):active {
-      transform: scale(0.95);
-    }
+    .hidden { display: none !important; }
 
-    .pause-btn {
-      background: #fbbf24;
-      color: #1a1a1a;
-    }
-
-    .pause-btn:not(:disabled):hover {
-      background: #fcd34d;
-    }
-
-    .resume-btn {
-      background: #4ade80;
-      color: #1a1a1a;
-    }
-
-    .resume-btn:not(:disabled):hover {
-      background: #6ee7b7;
-    }
-
-    .stop-btn {
-      background: #ef4444;
-      color: #ffffff;
-    }
-
-    .stop-btn:not(:disabled):hover {
-      background: #f87171;
-    }
-
-    .tooltip {
+    /* Resize gripper hint — bottom-right corner */
+    .gripper {
       position: absolute;
-      bottom: -24px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: #000;
-      color: #fff;
-      padding: 4px 8px;
-      border-radius: 4px;
-      font-size: 10px;
-      white-space: nowrap;
-      opacity: 0;
+      bottom: 4px; right: 4px;
+      width: 10px; height: 10px;
+      opacity: 0.18;
       pointer-events: none;
-      transition: opacity 0.2s;
-    }
-
-    .control-btn:hover .tooltip {
-      opacity: 1;
-    }
-
-    .hidden {
-      display: none;
     }
   </style>
 </head>
 <body>
-  <div class="container">
-    <div class="header">
-      <div class="subject">
-        <span class="subject-icon">📚</span>
-        <span id="subjectText">No subject</span>
-      </div>
-      <button class="close-btn" onclick="closeWidget()" title="Hide widget">×</button>
+  <div class="root">
+
+    <!-- ── Title bar (drag handle) ── -->
+    <div class="titlebar">
+      <span class="subject" id="subjectLabel">📚 No subject</span>
+
+      <!-- Restore main window -->
+      <button class="icon-btn" id="restoreBtn" title="Go to Study Time Tracker" onclick="restoreMain()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round"
+                d="M4 8V5a1 1 0 011-1h3M20 8V5a1 1 0 00-1-1h-3
+                   M4 16v3a1 1 0 001 1h3M20 16v3a1 1 0 01-1 1h-3"/>
+        </svg>
+      </button>
+
+      <!-- Close (hides widget; does NOT touch timer) -->
+      <button class="icon-btn close-btn" title="Close widget (timer keeps running)" onclick="closeWidget()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
     </div>
 
-    <div class="timer-display">
-      <div class="time" id="timerDisplay">00:00:00</div>
-      <div class="time-labels">hr   min   sec</div>
+    <!-- ── Clock ── -->
+    <div class="body">
+      <div class="time" id="clockFace">00:00:00</div>
+      <div class="time-labels">hr &nbsp;&nbsp; min &nbsp;&nbsp; sec</div>
+      <div class="status-line ready" id="statusLine">Ready</div>
     </div>
 
-    <div class="status" id="statusText">Ready</div>
-
+    <!-- ── Controls ── -->
     <div class="controls">
-      <button id="pauseBtn" class="control-btn pause-btn hidden" onclick="handlePause()" title="Pause timer">
-        <span>⏸</span>
-      </button>
-      
-      <button id="resumeBtn" class="control-btn resume-btn hidden" onclick="handleResume()" title="Resume timer">
-        <span>▶</span>
-      </button>
-      
-      <button id="stopBtn" class="control-btn stop-btn" onclick="handleStop()" title="Stop & Save">
-        <span>■</span>
-      </button>
+      <!-- Start (ready state) -->
+      <button class="ctrl-btn btn-start" id="startBtn"
+              title="Start" onclick="handleStart()">▶</button>
+
+      <!-- Pause (running) -->
+      <button class="ctrl-btn btn-pause hidden" id="pauseBtn"
+              title="Pause" onclick="handlePause()">⏸</button>
+
+      <!-- Resume (paused) -->
+      <button class="ctrl-btn btn-resume hidden" id="resumeBtn"
+              title="Resume" onclick="handleResume()">▶</button>
+
+      <!-- Reset (always visible) -->
+      <button class="ctrl-btn btn-reset" id="resetBtn"
+              title="Reset" onclick="handleReset()">↻</button>
     </div>
+
   </div>
 
+  <!-- resize gripper visual hint -->
+  <svg class="gripper" viewBox="0 0 10 10" fill="white">
+    <line x1="10" y1="0" x2="0" y2="10" stroke="white" stroke-width="1.5"/>
+    <line x1="10" y1="4" x2="4" y2="10" stroke="white" stroke-width="1.5"/>
+    <line x1="10" y1="8" x2="8" y2="10" stroke="white" stroke-width="1.5"/>
+  </svg>
+
   <script>
-    let currentState = {
-      state: 'ready',
-      subject: '',
-      startTime: null,
+    // ── Shared state received from the main process ────────────────────────
+    let state = {
+      state:          'ready',
+      subject:        '',
+      startTime:      null,
       elapsedSeconds: 0,
-      isPaused: false
+      isPaused:       false
     };
 
-    // Format seconds as HH:MM:SS
-    function formatTime(totalSeconds) {
-      const hours = Math.floor(totalSeconds / 3600);
-      const minutes = Math.floor((totalSeconds % 3600) / 60);
-      const seconds = totalSeconds % 60;
-      return [hours, minutes, seconds]
-        .map(v => String(v).padStart(2, '0'))
-        .join(':');
+    // ── DOM refs ────────────────────────────────────────────────────────────
+    const clockFace   = document.getElementById('clockFace');
+    const statusLine  = document.getElementById('statusLine');
+    const subjectLbl  = document.getElementById('subjectLabel');
+    const startBtn    = document.getElementById('startBtn');
+    const pauseBtn    = document.getElementById('pauseBtn');
+    const resumeBtn   = document.getElementById('resumeBtn');
+    const resetBtn    = document.getElementById('resetBtn');
+
+    // ── Helpers ─────────────────────────────────────────────────────────────
+    function fmt(s) {
+      const h = Math.floor(s / 3600);
+      const m = Math.floor((s % 3600) / 60);
+      const sec = s % 60;
+      return [h, m, sec].map(v => String(v).padStart(2, '0')).join(':');
     }
 
-    // Update UI based on current state
-    function updateUI() {
-      const { state, subject, elapsedSeconds, isPaused } = currentState;
-      
-      // Update subject
-      document.getElementById('subjectText').textContent = subject || 'No subject';
-      
-      // Update timer display
-      let displaySeconds = elapsedSeconds;
-      if (state === 'running' && !isPaused && currentState.startTime) {
-        const now = Date.now();
-        const additionalSeconds = Math.floor((now - currentState.startTime) / 1000);
-        displaySeconds = elapsedSeconds + additionalSeconds;
+    function liveSeconds() {
+      let t = state.elapsedSeconds;
+      if (state.state === 'running' && !state.isPaused && state.startTime) {
+        t += Math.floor((Date.now() - state.startTime) / 1000);
       }
-      document.getElementById('timerDisplay').textContent = formatTime(displaySeconds);
-      
-      // Update status
-      const statusEl = document.getElementById('statusText');
-      if (state === 'ready') {
-        statusEl.textContent = 'Ready';
-        statusEl.className = 'status';
-      } else if (state === 'running') {
-        if (isPaused) {
-          statusEl.textContent = 'Paused';
-          statusEl.className = 'status paused';
-        } else {
-          statusEl.textContent = 'Running ●';
-          statusEl.className = 'status running';
-        }
-      } else if (state === 'stopped') {
-        statusEl.textContent = 'Stopped';
-        statusEl.className = 'status stopped';
-      }
-      
-      // Update button visibility
-      const pauseBtn = document.getElementById('pauseBtn');
-      const resumeBtn = document.getElementById('resumeBtn');
-      const stopBtn = document.getElementById('stopBtn');
-      
-      if (state === 'running') {
-        if (isPaused) {
-          pauseBtn.classList.add('hidden');
-          resumeBtn.classList.remove('hidden');
-          stopBtn.disabled = false;
-        } else {
-          pauseBtn.classList.remove('hidden');
-          resumeBtn.classList.add('hidden');
-          stopBtn.disabled = false;
-        }
+      return t;
+    }
+
+    // ── Render ──────────────────────────────────────────────────────────────
+    function render() {
+      // Clock face
+      clockFace.textContent = fmt(liveSeconds());
+
+      // Subject label
+      subjectLbl.textContent = state.subject
+        ? '📚 ' + state.subject
+        : '📚 No subject';
+
+      // Status
+      statusLine.className = 'status-line';
+      if (state.state === 'running' && !state.isPaused) {
+        statusLine.textContent = '● Running';
+        statusLine.classList.add('running');
+      } else if (state.state === 'paused' || state.isPaused) {
+        statusLine.textContent = '⏸ Paused';
+        statusLine.classList.add('paused');
       } else {
-        pauseBtn.classList.add('hidden');
-        resumeBtn.classList.add('hidden');
-        stopBtn.disabled = true;
+        statusLine.textContent = 'Ready';
+        statusLine.classList.add('ready');
       }
+
+      // Buttons — show only what makes sense for the current state
+      startBtn.classList.toggle('hidden',  state.state !== 'ready');
+      pauseBtn.classList.toggle('hidden',  !(state.state === 'running' && !state.isPaused));
+      resumeBtn.classList.toggle('hidden', !(state.state === 'paused'  || state.isPaused));
+      resetBtn.disabled = false;
     }
 
-    // Handle incoming timer state updates
-    window.electronAPI.onTimerState((state) => {
-      currentState = state;
-      updateUI();
-    });
-
-    // Request initial state
-    window.electronAPI.requestTimerState();
-
-    // Update display every 250ms when running
+    // ── Live tick ───────────────────────────────────────────────────────────
     setInterval(() => {
-      if (currentState.state === 'running' && !currentState.isPaused) {
-        updateUI();
-      }
+      if (state.state === 'running' && !state.isPaused) render();
     }, 250);
 
-    // Control actions
-    function handlePause() {
-      window.electronAPI.sendTimerAction('pause');
-    }
+    // ── IPC: receive timer state broadcasts ─────────────────────────────────
+    window.electronAPI.onTimerState((newState) => {
+      state = newState;
+      render();
+    });
 
-    function handleResume() {
-      window.electronAPI.sendTimerAction('resume');
-    }
+    // Request current state on load
+    window.electronAPI.requestTimerState();
 
-    function handleStop() {
-      if (confirm('Stop and save this study session?')) {
-        window.electronAPI.sendTimerAction('stop-and-save');
+    // ── Control handlers ────────────────────────────────────────────────────
+
+    function handleStart() {
+      // Start requires a subject — delegate to the main window if none set
+      if (!state.subject) {
+        // Open main window so user can type a subject, then start
+        window.electronAPI.focusMainWindow();
+        return;
       }
+      window.electronAPI.sendTimerAction('start', { subject: state.subject });
     }
 
-    function closeWidget() {
-      window.electronAPI.closeFloatingWidget();
+    function handlePause()  { window.electronAPI.sendTimerAction('pause');  }
+    function handleResume() { window.electronAPI.sendTimerAction('resume'); }
+
+    function handleReset() {
+      if (state.state === 'running' && !state.isPaused) {
+        if (!confirm('Reset the running timer? Current time will be lost.')) return;
+      }
+      window.electronAPI.sendTimerAction('reset');
     }
+
+    function closeWidget()  { window.electronAPI.closeFloatingWidget(); }
+    function restoreMain()  { window.electronAPI.focusMainWindow();     }
   </script>
 </body>
 </html>
