@@ -4,7 +4,7 @@ const settingsSchema = new mongoose.Schema({
   dailyGoal: {
     type: Number,
     required: true,
-    default: 180, // 3 hours in minutes
+    default: 120, // 2 hours in minutes
   },
 });
 

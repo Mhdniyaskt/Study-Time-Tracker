@@ -86,20 +86,15 @@
           </div>
           <span class="text-sm font-medium text-gray-600">This Week</span>
         </div>
-        <div class="mb-2">
+        <div>
           <%
             const wh = Math.floor(weeklyTotal / 60);
             const wm = weeklyTotal % 60;
-            const goalH = Math.floor(weeklyGoal / 60);
-            const progressPct = Math.min(100, Math.round((weeklyTotal / weeklyGoal) * 100));
           %>
           <p class="text-2xl font-bold text-gray-800">
             <%= wh > 0 ? wh + 'h ' : '' %><%= wm + 'm' %>
           </p>
-          <p class="text-xs text-gray-500">Goal: <%= goalH %>h</p>
-        </div>
-        <div class="w-full bg-gray-100 rounded-full h-1.5">
-          <div class="h-1.5 bg-emerald-500 rounded-full transition-all" style="width: <%= progressPct %>%"></div>
+          <p class="text-xs text-gray-500">Total study time</p>
         </div>
       </div>
 
@@ -158,15 +153,15 @@
             <%= currentStreak %> <%= currentStreak === 1 ? 'day' : 'days' %>
           </p>
           <p class="text-xs text-gray-500">
-            <%= currentStreak > 0 ? 'Keep it up!' : 'Start today' %>
+            <%= currentStreak > 0 ? 'Keep going!' : 'Reach your goal today' %>
           </p>
         </div>
       </div>
 
     </div>
 
-    <!-- 2-Column Layout -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <!-- 3-Column Layout -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
       
       <!-- LEFT: Add Study Session Form -->
       <div class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
@@ -263,6 +258,79 @@
             Add Study Session
           </button>
         </form>
+      </div>
+
+      <!-- MIDDLE: Study Timer -->
+      <div class="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
+        <h2 class="text-lg font-semibold text-gray-700 mb-4">Study Timer</h2>
+
+        <!-- Timer Display -->
+        <div class="text-center mb-4">
+          <div id="timerDisplay" class="text-5xl font-bold text-gray-800 font-mono tracking-tight mb-2">
+            00:00:00
+          </div>
+          <p id="timerStatus" class="text-xs text-gray-500">Ready to start</p>
+        </div>
+
+        <!-- Subject Input for Timer -->
+        <div class="mb-4">
+          <label for="timerSubject" class="block text-sm font-medium text-gray-600 mb-1">Subject</label>
+          <input
+            type="text"
+            id="timerSubject"
+            placeholder="e.g. Mathematics, History..."
+            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent transition"
+          />
+          <p id="timerSubjectError" class="mt-1 text-xs text-red-500 hidden"></p>
+        </div>
+
+        <!-- Timer Control Buttons (Stable Layout - Always Visible) -->
+        <div class="grid grid-cols-3 gap-2 mb-2">
+          <button
+            id="timerStartBtn"
+            onclick="startTimer()"
+            class="bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-medium py-2 rounded-lg text-sm transition flex items-center justify-center gap-1">
+            <span>▶</span>
+            <span>Start</span>
+          </button>
+          
+          <button
+            id="timerStopBtn"
+            onclick="stopTimer()"
+            disabled
+            class="bg-red-600 hover:bg-red-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-medium py-2 rounded-lg text-sm transition flex items-center justify-center gap-1">
+            <span>■</span>
+            <span>Stop</span>
+          </button>
+          
+          <button
+            id="timerResetBtn"
+            onclick="resetTimer()"
+            class="bg-gray-500 hover:bg-gray-600 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-medium py-2 rounded-lg text-sm transition flex items-center justify-center gap-1">
+            <span>↻</span>
+            <span>Reset</span>
+          </button>
+        </div>
+
+        <!-- Submit Button (Full Width) -->
+        <button
+          id="timerSubmitBtn"
+          onclick="submitTimer()"
+          disabled
+          class="w-full bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-medium py-2.5 rounded-lg text-sm transition flex items-center justify-center gap-2">
+          <span>✓</span>
+          <span id="submitBtnText">Submit</span>
+        </button>
+
+        <!-- Info Message -->
+        <p class="text-xs text-gray-500 text-center mt-3">
+          ⓘ Time will be added only when you click Submit.
+        </p>
+
+        <!-- Timer Warning Message -->
+        <div id="timerWarning" class="hidden mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3">
+          <p class="text-xs text-amber-800"></p>
+        </div>
       </div>
 
       <!-- RIGHT: Study by Subject -->
@@ -673,6 +741,516 @@
         }
       }
     });
+
+    // ==========================================================================
+    // STUDY TIMER IMPLEMENTATION
+    // ==========================================================================
+
+    /**
+     * Timer State (persisted in localStorage for cross-navigation persistence)
+     * - timerState: 'ready' | 'running' | 'stopped'
+     * - timerSubject: string
+     * - timerStartTime: timestamp (when timer was started)
+     * - timerElapsedSeconds: exact accumulated seconds
+     */
+
+    let timerState = 'ready';
+    let timerSubject = '';
+    let timerStartTime = null;
+    let timerElapsedSeconds = 0;
+    let timerIntervalId = null;
+
+    const TIMER_STORAGE_KEY = 'studyTimerState';
+
+    // DOM Elements
+    const timerDisplay = document.getElementById('timerDisplay');
+    const timerStatus = document.getElementById('timerStatus');
+    const timerSubjectInput = document.getElementById('timerSubject');
+    const timerSubjectError = document.getElementById('timerSubjectError');
+    const timerWarning = document.getElementById('timerWarning');
+    const startBtn = document.getElementById('timerStartBtn');
+    const stopBtn = document.getElementById('timerStopBtn');
+    const resetBtn = document.getElementById('timerResetBtn');
+    const submitBtn = document.getElementById('timerSubmitBtn');
+    const submitBtnText = document.getElementById('submitBtnText');
+
+    /**
+     * Initialize timer on page load — restore from localStorage if exists
+     */
+    function initTimer() {
+      const saved = localStorage.getItem(TIMER_STORAGE_KEY);
+      if (saved) {
+        try {
+          const state = JSON.parse(saved);
+          timerState = state.timerState || 'ready';
+          timerSubject = state.timerSubject || '';
+          timerStartTime = state.timerStartTime || null;
+          timerElapsedSeconds = state.timerElapsedSeconds || 0;
+
+          // Populate subject input
+          timerSubjectInput.value = timerSubject;
+
+          // If timer was running, continue it
+          if (timerState === 'running' && timerStartTime) {
+            // Recalculate elapsed time based on current time
+            const now = Date.now();
+            const additionalSeconds = Math.floor((now - timerStartTime) / 1000);
+            timerElapsedSeconds += additionalSeconds;
+            timerStartTime = now; // Reset to now
+            startTimerTick();
+            updateUI();
+          } else if (timerState === 'stopped') {
+            updateDisplay();
+            updateUI();
+          }
+        } catch (err) {
+          console.error('Failed to restore timer state:', err);
+          clearAndResetTimer();
+        }
+      }
+    }
+
+    /**
+     * Save timer state to localStorage
+     */
+    function saveTimerState() {
+      const state = {
+        timerState,
+        timerSubject,
+        timerStartTime,
+        timerElapsedSeconds
+      };
+      localStorage.setItem(TIMER_STORAGE_KEY, JSON.stringify(state));
+    }
+
+    /**
+     * Clear timer state from localStorage
+     */
+    function clearTimerState() {
+      localStorage.removeItem(TIMER_STORAGE_KEY);
+    }
+
+    /**
+     * Format seconds as HH:MM:SS
+     */
+    function formatTime(totalSeconds) {
+      const hours = Math.floor(totalSeconds / 3600);
+      const minutes = Math.floor((totalSeconds % 3600) / 60);
+      const seconds = totalSeconds % 60;
+      return [hours, minutes, seconds]
+        .map(v => String(v).padStart(2, '0'))
+        .join(':');
+    }
+
+    /**
+     * Format seconds as human readable (e.g., "3m 15s", "45s", "1h 5m 30s")
+     */
+    function formatTimeHuman(totalSeconds) {
+      const hours = Math.floor(totalSeconds / 3600);
+      const minutes = Math.floor((totalSeconds % 3600) / 60);
+      const seconds = totalSeconds % 60;
+      
+      const parts = [];
+      if (hours > 0) parts.push(`${hours}h`);
+      if (minutes > 0) parts.push(`${minutes}m`);
+      if (seconds > 0 || parts.length === 0) parts.push(`${seconds}s`);
+      
+      return parts.join(' ');
+    }
+
+    /**
+     * Update the timer display with current elapsed time
+     */
+    function updateDisplay() {
+      let currentElapsed = timerElapsedSeconds;
+      if (timerState === 'running' && timerStartTime) {
+        const now = Date.now();
+        const additionalSeconds = Math.floor((now - timerStartTime) / 1000);
+        currentElapsed += additionalSeconds;
+      }
+      timerDisplay.textContent = formatTime(currentElapsed);
+    }
+
+    /**
+     * Update UI button states and status text
+     * Buttons always remain visible - only enabled/disabled state changes
+     */
+    function updateUI() {
+      // Clear any previous warnings
+      hideWarning();
+      clearSubjectError();
+
+      if (timerState === 'ready') {
+        timerStatus.textContent = 'Ready to start';
+        timerStatus.className = 'text-xs text-gray-500';
+        
+        startBtn.disabled = false;
+        stopBtn.disabled = true;
+        resetBtn.disabled = false;
+        submitBtn.disabled = true;
+        submitBtnText.textContent = 'Submit';
+        
+        timerSubjectInput.disabled = false;
+      } else if (timerState === 'running') {
+        timerStatus.textContent = 'Running ●';
+        timerStatus.className = 'text-xs text-emerald-600 font-medium';
+        
+        startBtn.disabled = true;
+        stopBtn.disabled = false;
+        resetBtn.disabled = false;
+        submitBtn.disabled = true;
+        submitBtnText.textContent = 'Submit';
+        
+        timerSubjectInput.disabled = true;
+      } else if (timerState === 'stopped') {
+        timerStatus.textContent = 'Stopped';
+        timerStatus.className = 'text-xs text-amber-600 font-medium';
+        
+        startBtn.disabled = true;
+        stopBtn.disabled = true;
+        resetBtn.disabled = false;
+        submitBtn.disabled = false;
+        
+        // Show exact time that will be added
+        const timeStr = formatTimeHuman(timerElapsedSeconds);
+        submitBtnText.textContent = `Submit (Add ${timeStr})`;
+        
+        timerSubjectInput.disabled = false; // Allow editing subject before submit
+      }
+    }
+
+    /**
+     * Show warning message
+     */
+    function showWarning(message) {
+      timerWarning.querySelector('p').textContent = message;
+      timerWarning.classList.remove('hidden');
+    }
+
+    /**
+     * Hide warning message
+     */
+    function hideWarning() {
+      timerWarning.classList.add('hidden');
+    }
+
+    /**
+     * Show subject input error
+     */
+    function showSubjectError(message) {
+      timerSubjectError.textContent = message;
+      timerSubjectError.classList.remove('hidden');
+      timerSubjectInput.classList.remove('border-gray-300', 'focus:ring-indigo-400');
+      timerSubjectInput.classList.add('border-red-400', 'bg-red-50', 'focus:ring-red-400');
+    }
+
+    /**
+     * Clear subject input error
+     */
+    function clearSubjectError() {
+      timerSubjectError.classList.add('hidden');
+      timerSubjectInput.classList.remove('border-red-400', 'bg-red-50', 'focus:ring-red-400');
+      timerSubjectInput.classList.add('border-gray-300', 'focus:ring-indigo-400');
+    }
+
+    /**
+     * Start the interval timer tick (every 100ms for smooth updates)
+     */
+    function startTimerTick() {
+      if (timerIntervalId) clearInterval(timerIntervalId);
+      timerIntervalId = setInterval(() => {
+        updateDisplay();
+        saveTimerState();
+      }, 100);
+    }
+
+    /**
+     * Stop the interval timer tick
+     */
+    function stopTimerTick() {
+      if (timerIntervalId) {
+        clearInterval(timerIntervalId);
+        timerIntervalId = null;
+      }
+    }
+
+    /**
+     * START button handler
+     * Validates subject and starts the timer running
+     * Does NOT save to database
+     */
+    function startTimer() {
+      // Validate subject
+      const subject = timerSubjectInput.value.trim();
+      if (!subject) {
+        showSubjectError('Subject is required.');
+        return;
+      }
+      if (subject.length < 2) {
+        showSubjectError('Subject must be at least 2 characters.');
+        return;
+      }
+      if (subject.length > 50) {
+        showSubjectError('Subject must be 50 characters or fewer.');
+        return;
+      }
+
+      // Start timer
+      timerState = 'running';
+      timerSubject = subject;
+      timerStartTime = Date.now();
+      timerElapsedSeconds = 0;
+
+      startTimerTick();
+      updateUI();
+      saveTimerState();
+    }
+
+    /**
+     * STOP button handler
+     * Stops/freezes the timer WITHOUT saving to database
+     * Preserves exact elapsed seconds
+     */
+    function stopTimer() {
+      if (timerState !== 'running') return;
+
+      // Calculate and freeze exact elapsed time
+      const now = Date.now();
+      const additionalSeconds = Math.floor((now - timerStartTime) / 1000);
+      timerElapsedSeconds += additionalSeconds;
+
+      timerState = 'stopped';
+      timerStartTime = null;
+
+      stopTimerTick();
+      updateDisplay();
+      updateUI();
+      saveTimerState();
+    }
+
+    /**
+     * RESET button handler
+     * Resets timer back to 00:00:00 WITHOUT saving to database
+     * If timer is running, asks for confirmation first
+     */
+    function resetTimer() {
+      // If running, ask for confirmation
+      if (timerState === 'running') {
+        if (!confirm('Reset the running timer? Your current time will be lost.')) {
+          return;
+        }
+      }
+
+      // Clear and reset everything
+      clearAndResetTimer();
+    }
+
+    /**
+     * Clear all timer data and reset to initial state
+     */
+    function clearAndResetTimer() {
+      timerState = 'ready';
+      timerSubject = '';
+      timerStartTime = null;
+      timerElapsedSeconds = 0;
+
+      stopTimerTick();
+      clearTimerState();
+      timerSubjectInput.value = '';
+      timerDisplay.textContent = '00:00:00';
+      updateUI();
+    }
+
+    /**
+     * SUBMIT button handler
+     * This is the ONLY function that saves to MongoDB
+     * Saves exact durationSeconds to database
+     */
+    async function submitTimer() {
+      if (timerState !== 'stopped') {
+        showWarning('Please stop the timer before submitting.');
+        return;
+      }
+
+      // Re-validate subject (user might have changed it)
+      const subject = timerSubjectInput.value.trim();
+      if (!subject) {
+        showSubjectError('Subject is required.');
+        return;
+      }
+      if (subject.length < 2) {
+        showSubjectError('Subject must be at least 2 characters.');
+        return;
+      }
+      if (subject.length > 50) {
+        showSubjectError('Subject must be 50 characters or fewer.');
+        return;
+      }
+
+      // Validate minimum time (at least 1 second)
+      const finalElapsed = timerElapsedSeconds;
+      if (finalElapsed < 1) {
+        showWarning('Timer must run for at least 1 second before submitting.');
+        return;
+      }
+
+      // Disable the submit button to prevent double-clicks
+      submitBtn.disabled = true;
+      submitBtnText.textContent = 'Saving...';
+
+      try {
+        // Send to server - ONLY time we save to database
+        // Send exact seconds - server will store durationSeconds and derive duration (minutes)
+        const response = await fetch('/timer/save', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            subject: subject, // Use current subject value (might have been edited)
+            elapsedSeconds: finalElapsed
+          })
+        });
+
+        const result = await response.json();
+
+        if (response.ok && result.success) {
+          // Success — reset timer and reload page to show new session
+          clearAndResetTimer();
+          window.location.reload();
+        } else {
+          // Server returned an error
+          showWarning(result.error || 'Failed to save session. Please try again.');
+          submitBtn.disabled = false;
+          const timeStr = formatTimeHuman(finalElapsed);
+          submitBtnText.textContent = `Submit (Add ${timeStr})`;
+        }
+      } catch (err) {
+        console.error('Failed to save timer session:', err);
+        showWarning('Network error. Please check your connection and try again.');
+        submitBtn.disabled = false;
+        const timeStr = formatTimeHuman(finalElapsed);
+        submitBtnText.textContent = `Submit (Add ${timeStr})`;
+      }
+    }
+
+    // Clear subject error when user types
+    timerSubjectInput.addEventListener('input', clearSubjectError);
+
+    // Initialize timer on page load
+    initTimer();
+
+    // ==========================================================================
+    // ELECTRON IPC INTEGRATION
+    // ==========================================================================
+    
+    /**
+     * Integrate with Electron's shared timer state if running in Electron
+     */
+    if (window.electronAPI) {
+      // Listen for timer state updates from Electron
+      window.electronAPI.onTimerState((state) => {
+        // Sync local state with Electron's shared state
+        timerState = state.state;
+        timerSubject = state.subject;
+        timerStartTime = state.startTime;
+        timerElapsedSeconds = state.elapsedSeconds;
+        
+        // Handle pause state
+        if (state.isPaused && timerState === 'running') {
+          // Timer is paused - show as stopped in main UI
+          // (main UI doesn't have pause, so we show stopped state)
+          timerState = 'stopped';
+        }
+        
+        updateDisplay();
+        updateUI();
+        saveTimerState();
+      });
+      
+      // Override timer functions to use Electron IPC
+      const originalStartTimer = window.startTimer;
+      window.startTimer = function() {
+        // Validate subject locally first
+        const subject = timerSubjectInput.value.trim();
+        if (!subject) {
+          showSubjectError('Subject is required.');
+          return;
+        }
+        if (subject.length < 2) {
+          showSubjectError('Subject must be at least 2 characters.');
+          return;
+        }
+        if (subject.length > 50) {
+          showSubjectError('Subject must be 50 characters or fewer.');
+          return;
+        }
+        
+        // Send to Electron
+        window.electronAPI.sendTimerAction('start', { subject });
+      };
+      
+      const originalStopTimer = window.stopTimer;
+      window.stopTimer = function() {
+        window.electronAPI.sendTimerAction('stop');
+      };
+      
+      const originalResetTimer = window.clearAndResetTimer;
+      window.clearAndResetTimer = function() {
+        window.electronAPI.sendTimerAction('reset');
+      };
+      
+      // Request initial state from Electron
+      window.electronAPI.requestTimerState();
+      
+      // Handle save requests from floating widget (via Electron main process)
+      window.electronAPI.onSaveTimerSession(async (data) => {
+        const { subject, elapsedSeconds } = data;
+        
+        try {
+          const response = await fetch('/timer/save', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ subject, elapsedSeconds })
+          });
+          
+          if (response.ok) {
+            // Refresh dashboard to show new session
+            location.reload();
+          } else {
+            const errorData = await response.json();
+            console.error('Failed to save timer session:', errorData.error);
+            alert('Failed to save study session: ' + errorData.error);
+          }
+        } catch (error) {
+          console.error('Error saving timer session:', error);
+          alert('Error saving study session. Please try again.');
+        }
+      });
+      
+      // Sync local changes to Electron
+      const originalSaveTimerState = saveTimerState;
+      saveTimerState = function() {
+        originalSaveTimerState();
+        
+        // Also update Electron's shared state
+        if (window.electronAPI) {
+          window.electronAPI.sendTimerAction('update-state', {
+            state: timerState,
+            subject: timerSubject,
+            startTime: timerStartTime,
+            elapsedSeconds: timerElapsedSeconds,
+            isPaused: false
+          });
+        }
+      };
+    }
+
+    // ==========================================================================
+    // END ELECTRON IPC INTEGRATION
+    // ==========================================================================
+
+    // ==========================================================================
+    // END TIMER IMPLEMENTATION
+    // ==========================================================================
   </script>
 
 </body>

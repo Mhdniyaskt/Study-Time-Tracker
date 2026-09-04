@@ -7,7 +7,11 @@ const studySessionSchema = new mongoose.Schema({
   },
   duration: {
     type: Number,
-    required: true, // stored in total minutes
+    required: true, // stored in total minutes (for backward compatibility)
+  },
+  durationSeconds: {
+    type: Number,
+    default: null, // exact seconds, null for legacy sessions
   },
   date: {
     type: Date,

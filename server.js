@@ -200,9 +200,9 @@ app.get("/", async (req, res) => {
 
     const totalStudyTime = sessions.reduce((sum, s) => sum + s.duration, 0);
 
-    // Daily goal — load from Settings, fall back to 180 mins (3h)
+    // Daily goal — load from Settings, fall back to 120 mins (2h)
     const settings = await Settings.findOne();
-    const dailyGoal = settings ? settings.dailyGoal : 180;
+    const dailyGoal = settings ? settings.dailyGoal : 120;
     const dailyProgress = Math.min(100, Math.round((todayTotal / dailyGoal) * 100));
 
     // Current week: Monday 00:00 to Sunday 23:59
@@ -217,8 +217,6 @@ app.get("/", async (req, res) => {
       .filter((s) => toLocalDateString(s.date) >= weekStartStr)
       .reduce((sum, s) => sum + s.duration, 0);
 
-    const weeklyGoal = 21 * 60; // 21 hours in minutes
-
     // Current month: first day 00:00 to last day 23:59
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const monthStartStr = toLocalDateString(monthStart);
@@ -227,22 +225,27 @@ app.get("/", async (req, res) => {
     const monthlyTotal = monthSessions.reduce((sum, s) => sum + s.duration, 0);
     const monthlySessions = monthSessions.length;
 
-    // Current streak: consecutive days ending today with at least one session
-    // Build a Set of date strings "YYYY-MM-DD" that have sessions
-    const studiedDays = new Set(
-      sessions.map((s) => toLocalDateString(s.date))
-    );
+    // Current streak: consecutive days ending today where daily total meets or exceeds dailyGoal
+    // Build a map of date strings "YYYY-MM-DD" → total minutes studied that day
+    const dailyTotalsMap = {};
+    for (const session of sessions) {
+      const dateStr = toLocalDateString(session.date);
+      dailyTotalsMap[dateStr] = (dailyTotalsMap[dateStr] || 0) + session.duration;
+    }
 
-    const hasStudiedOn = (dateStr) => studiedDays.has(dateStr);
+    const meetsGoal = (dateStr) => {
+      const total = dailyTotalsMap[dateStr] || 0;
+      return total >= dailyGoal;
+    };
 
     let currentStreak = 0;
     const cursor = new Date(now);
     cursor.setHours(0, 0, 0, 0);
 
-    // Streak only starts if today has a session
+    // Streak only starts if today meets the goal
     let cursorStr = toLocalDateString(cursor);
-    if (hasStudiedOn(cursorStr)) {
-      while (hasStudiedOn(cursorStr)) {
+    if (meetsGoal(cursorStr)) {
+      while (meetsGoal(cursorStr)) {
         currentStreak++;
         cursor.setDate(cursor.getDate() - 1);
         cursorStr = toLocalDateString(cursor);
@@ -320,7 +323,6 @@ app.get("/", async (req, res) => {
       todayTotal, 
       totalStudyTime, 
       weeklyTotal, 
-      weeklyGoal, 
       monthlyTotal, 
       monthlySessions, 
       currentStreak, 
@@ -343,13 +345,12 @@ app.get("/", async (req, res) => {
       todayTotal: 0, 
       totalStudyTime: 0, 
       weeklyTotal: 0, 
-      weeklyGoal: 21 * 60, 
       monthlyTotal: 0, 
       monthlySessions: 0, 
       currentStreak: 0, 
-      dailyGoal: 180, 
+      dailyGoal: 120, 
       dailyProgress: 0, 
-      dailyGoalHours: 3,
+      dailyGoalHours: 2,
       weeklyChartData: [0, 0, 0, 0, 0, 0, 0],
       weeklyChartLabels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
       monthlyChartData: [],
@@ -383,7 +384,7 @@ app.post("/study", async (req, res, next) => {
         const totalStudyTime = sessions.reduce((sum,s)=>sum+s.duration,0);
 
         const settings    = await Settings.findOne();
-        const dailyGoal   = settings ? settings.dailyGoal : 180;
+        const dailyGoal   = settings ? settings.dailyGoal : 120;
         const dailyProgress = Math.min(100, Math.round((todayTotal / dailyGoal) * 100));
 
         const dayOfWeek     = now.getDay();
@@ -393,7 +394,6 @@ app.post("/study", async (req, res, next) => {
         weekStart.setHours(0,0,0,0);
         const weekStartStr  = toLocalDateString(weekStart);
         const weeklyTotal   = sessions.filter(s=>toLocalDateString(s.date)>=weekStartStr).reduce((sum,s)=>sum+s.duration,0);
-        const weeklyGoal    = 21 * 60;
 
         const monthStart    = new Date(now.getFullYear(), now.getMonth(), 1);
         const monthStartStr = toLocalDateString(monthStart);
@@ -401,12 +401,14 @@ app.post("/study", async (req, res, next) => {
         const monthlyTotal  = monthSessions.reduce((sum,s)=>sum+s.duration,0);
         const monthlySessions = monthSessions.length;
 
-        const studiedDays = new Set(sessions.map(s=>toLocalDateString(s.date)));
+        const dailyTotalsMap = {};
+        for (const s of sessions) { const dateStr=toLocalDateString(s.date); dailyTotalsMap[dateStr]=(dailyTotalsMap[dateStr]||0)+s.duration; }
+        const meetsGoal = (dateStr) => (dailyTotalsMap[dateStr]||0) >= dailyGoal;
         let currentStreak = 0;
         const cursor = new Date(now); cursor.setHours(0,0,0,0);
         let cursorStr = toLocalDateString(cursor);
-        if (studiedDays.has(cursorStr)) {
-          while (studiedDays.has(cursorStr)) {
+        if (meetsGoal(cursorStr)) {
+          while (meetsGoal(cursorStr)) {
             currentStreak++;
             cursor.setDate(cursor.getDate()-1);
             cursorStr = toLocalDateString(cursor);
@@ -443,7 +445,7 @@ app.post("/study", async (req, res, next) => {
           sessions,
           groupedSessions: Object.values(groupsMap),
           subjectStats,
-          todayTotal, totalStudyTime, weeklyTotal, weeklyGoal,
+          todayTotal, totalStudyTime, weeklyTotal,
           monthlyTotal, monthlySessions, currentStreak,
           dailyGoal, dailyProgress, dailyGoalHours: dailyGoal/60,
           weeklyChartData, weeklyChartLabels: dayNames,
@@ -1044,6 +1046,64 @@ app.get("/history", async (req, res) => {
       groupedSessions: [],
       sessions: []
     });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Timer Save Route
+// ---------------------------------------------------------------------------
+
+/**
+ * POST /timer/save
+ * Accepts { subject, elapsedSeconds } from the client-side study timer.
+ * Stores exact durationSeconds and derives durationMinutes for compatibility.
+ * Returns JSON so the client can handle success/error without a page reload.
+ */
+app.post("/timer/save", express.json(), async (req, res, next) => {
+  try {
+    const rawSubject = sanitizeInput(req.body.subject);
+    const rawSeconds = req.body.elapsedSeconds;
+
+    // --- Validate subject ---
+    const subject = rawSubject.trim();
+    if (!subject || subject.length < 2 || subject.length > 50) {
+      return res.status(400).json({ error: "Subject must be between 2 and 50 characters." });
+    }
+
+    // --- Validate elapsed seconds ---
+    const elapsedSeconds = parseInt(sanitizeInput(String(rawSeconds ?? 0)), 10);
+    if (isNaN(elapsedSeconds) || elapsedSeconds < 1) {
+      return res.status(400).json({ error: "Timer has not recorded any time yet." });
+    }
+
+    // Store exact seconds and derive minutes
+    // Do NOT enforce minimum 1 minute - preserve exact seconds
+    // Examples:
+    //   3 seconds → durationSeconds: 3, duration: 0
+    //   45 seconds → durationSeconds: 45, duration: 0
+    //   60 seconds → durationSeconds: 60, duration: 1
+    //   90 seconds → durationSeconds: 90, duration: 1
+    //   195 seconds → durationSeconds: 195, duration: 3
+    const durationSeconds = elapsedSeconds;
+    const duration = Math.floor(elapsedSeconds / 60); // Minutes (can be 0)
+
+    const session = new StudySession({ 
+      subject, 
+      duration, 
+      durationSeconds 
+    });
+    await session.save();
+
+    return res.json({ 
+      success: true, 
+      duration, 
+      durationSeconds,
+      elapsedSeconds 
+    });
+  } catch (err) {
+    console.error("Failed to save timer session:", err.message);
+    if (isDevelopment) console.error(err.stack);
+    next(err);
   }
 });
 
