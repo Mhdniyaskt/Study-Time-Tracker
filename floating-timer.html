@@ -25,6 +25,7 @@
       --accent-green-hover: #059669;
       --accent-amber: #f59e0b;
       --accent-amber-hover: #d97706;
+      --accent-purple: #a855f7;
       --radius: 12px;
     }
 
@@ -86,9 +87,33 @@
     .titlebar-right {
       display: flex;
       align-items: center;
-      gap: 5px;
+      gap: 4px;
       flex-shrink: 0;
       -webkit-app-region: no-drag;
+    }
+
+    /* Mode pill button in titlebar */
+    .mode-toggle {
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      padding: 2px 6px;
+      border-radius: 4px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--txt-muted);
+      cursor: pointer;
+      letter-spacing: 0.5px;
+      transition: background 0.15s, color 0.15s;
+    }
+    .mode-toggle:hover {
+      background: rgba(255, 255, 255, 0.12);
+      color: var(--txt-primary);
+    }
+    .mode-toggle.focus-active {
+      color: #818cf8;
+      border-color: rgba(129, 140, 248, 0.3);
+      background: rgba(99, 102, 241, 0.15);
     }
 
     /* Status dot in titlebar */
@@ -106,6 +131,10 @@
     .status-dot.paused {
       background: var(--accent-amber);
     }
+    .status-dot.break {
+      background: var(--accent-purple);
+      box-shadow: 0 0 8px rgba(168, 85, 247, 0.6);
+    }
 
     .titlebar button {
       -webkit-app-region: no-drag;
@@ -113,9 +142,9 @@
     }
 
     .icon-btn {
-      width: 22px;
-      height: 22px;
-      border-radius: 5px;
+      width: 20px;
+      height: 20px;
+      border-radius: 4px;
       border: none;
       background: transparent;
       color: var(--txt-dim);
@@ -129,8 +158,8 @@
       color: var(--txt-primary);
     }
     .icon-btn svg {
-      width: 12px;
-      height: 12px;
+      width: 11px;
+      height: 11px;
     }
     .close-btn:hover {
       background: rgba(239, 68, 68, 0.2);
@@ -149,7 +178,7 @@
 
     .timer-digits {
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
-      font-size: clamp(28px, 9vw, 36px);
+      font-size: clamp(26px, 8.5vw, 34px);
       font-weight: 600;
       letter-spacing: -0.5px;
       color: var(--txt-primary);
@@ -157,247 +186,293 @@
       font-variant-numeric: tabular-nums;
     }
 
-    .status-badge {
-      display: inline-flex;
+    .status-badge-row {
+      display: flex;
       align-items: center;
-      gap: 5px;
-      font-size: 11px;
-      font-weight: 500;
-      color: var(--txt-dim);
+      gap: 6px;
       margin-top: 4px;
-      padding: 2px 8px;
+    }
+
+    .status-badge {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.4px;
+      text-transform: uppercase;
+      padding: 2px 7px;
       border-radius: 9999px;
-      background: rgba(255, 255, 255, 0.03);
-      transition: all 0.2s ease;
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--txt-dim);
+      transition: color 0.2s, background 0.2s;
     }
     .status-badge.running {
       color: var(--accent-green);
-      background: rgba(16, 185, 129, 0.1);
+      background: rgba(16, 185, 129, 0.12);
     }
     .status-badge.paused {
       color: var(--accent-amber);
-      background: rgba(245, 158, 11, 0.1);
+      background: rgba(245, 158, 11, 0.12);
+    }
+    .status-badge.break {
+      color: var(--accent-purple);
+      background: rgba(168, 85, 247, 0.15);
     }
 
-    /* Action Controls */
-    .controls-row {
+    .round-badge {
+      font-size: 10px;
+      font-weight: 500;
+      color: var(--txt-muted);
+      background: rgba(255, 255, 255, 0.05);
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+
+    /* Widget Controls */
+    .widget-controls {
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 10px;
-      padding: 8px 14px 12px;
+      gap: 6px;
+      padding: 8px 10px 10px;
       flex-shrink: 0;
     }
 
-    .btn-action {
+    .btn {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      gap: 6px;
-      padding: 6px 14px;
-      font-size: 12px;
+      gap: 4px;
+      height: 30px;
+      padding: 0 10px;
+      border-radius: 7px;
+      font-size: 11px;
       font-weight: 600;
-      border-radius: 8px;
-      border: 1px solid transparent;
       cursor: pointer;
-      transition: all 0.12s ease;
-      min-width: 82px;
-      height: 32px;
+      border: none;
+      transition: background 0.15s, opacity 0.15s, transform 0.08s;
+      white-space: nowrap;
     }
-    .btn-action:active {
+    .btn:active {
       transform: scale(0.97);
     }
-    .btn-action:disabled {
-      opacity: 0.35;
-      cursor: not-allowed;
-      transform: none;
-    }
 
-    .btn-start {
+    .btn-primary {
       background: var(--accent-green);
       color: #ffffff;
+      flex: 1;
     }
-    .btn-start:hover:not(:disabled) {
+    .btn-primary:hover {
       background: var(--accent-green-hover);
     }
 
-    .btn-pause {
+    .btn-warning {
       background: var(--accent-amber);
       color: #ffffff;
+      flex: 1;
     }
-    .btn-pause:hover:not(:disabled) {
+    .btn-warning:hover {
       background: var(--accent-amber-hover);
     }
 
-    .btn-resume {
-      background: var(--accent-green);
+    .btn-purple {
+      background: var(--accent-purple);
       color: #ffffff;
+      flex: 1;
     }
-    .btn-resume:hover:not(:disabled) {
-      background: var(--accent-green-hover);
+    .btn-purple:hover {
+      background: #9333ea;
     }
 
-    .btn-reset {
+    .btn-neutral {
       background: var(--bg-btn-neutral);
       color: var(--txt-muted);
-      border-color: var(--border);
+      border: 1px solid var(--border);
     }
-    .btn-reset:hover:not(:disabled) {
+    .btn-neutral:hover:not(:disabled) {
       background: var(--bg-btn-neutral-hover);
       color: var(--txt-primary);
+    }
+    .btn-neutral:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
     }
 
     .hidden {
       display: none !important;
     }
-
-    /* Corner resize hint */
-    .resize-hint {
-      position: absolute;
-      bottom: 3px;
-      right: 3px;
-      width: 8px;
-      height: 8px;
-      pointer-events: none;
-      opacity: 0.2;
-    }
   </style>
 </head>
 <body>
   <div class="widget-container">
-    <!-- Top Bar: Subject and Window Controls -->
-    <div class="titlebar" id="titlebar">
+    <!-- Titlebar / Drag Handle -->
+    <div class="titlebar">
       <div class="titlebar-left">
-        <span class="subject-text" id="subjectLabel">📚 No subject</span>
+        <span class="status-dot" id="statusDot"></span>
+        <span class="subject-text" id="subjectLbl">📚 No subject</span>
       </div>
       <div class="titlebar-right">
-        <!-- Status dot -->
-        <span class="status-dot" id="statusDot" title="Status"></span>
+        <!-- Mode Switcher -->
+        <button class="mode-toggle" id="modeToggleBtn" title="Switch Timer Mode">FREE</button>
 
-        <!-- Restore / Focus Main Window -->
-        <button class="icon-btn" id="restoreBtn" title="Open Main Window" onclick="restoreMain()">
+        <!-- Focus Main Window -->
+        <button class="icon-btn" id="restoreBtn" title="Restore Main Window" onclick="restoreMain()">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M4 8V5a1 1 0 011-1h3M20 8V5a1 1 0 00-1-1h-3M4 16v3a1 1 0 001 1h3M20 16v3a1 1 0 01-1 1h-3"/>
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 8V5a1 1 0 011-1h3M20 8V5a1 1 0 00-1-1h-3M4 16v3a1 1 0 001 1h3M20 16v3a1 1 0 01-1 1h-3" />
           </svg>
         </button>
 
-        <!-- Hide / Close Widget (timer keeps running) -->
-        <button class="icon-btn close-btn" title="Hide Widget (timer keeps running)" onclick="closeWidget()">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+        <!-- Close Widget -->
+        <button class="icon-btn close-btn" title="Close Widget" onclick="closeWidget()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
           </svg>
         </button>
       </div>
     </div>
 
-    <!-- Clock Display -->
-    <div class="widget-body" onclick="restoreMain()" style="cursor: pointer;" title="Click to view main timer">
-      <div class="timer-digits" id="timerClock">00:00:00</div>
-      <div class="status-badge" id="statusBadge">Ready</div>
+    <!-- Body -->
+    <div class="widget-body">
+      <div class="timer-digits" id="timerClock">00:00</div>
+      <div class="status-badge-row">
+        <span class="status-badge" id="statusBadge">Ready</span>
+        <span class="round-badge hidden" id="roundBadge">R 1/4</span>
+      </div>
     </div>
 
-    <!-- Control Buttons -->
-    <div class="controls-row">
-      <!-- Start Button (Ready state) -->
-      <button class="btn-action btn-start" id="startBtn" onclick="handleStart()">
-        <span>▶</span>
-        <span>Start</span>
-      </button>
-
-      <!-- Pause Button (Running state) -->
-      <button class="btn-action btn-pause hidden" id="pauseBtn" onclick="handlePause()">
-        <span>⏸</span>
-        <span>Pause</span>
-      </button>
-
-      <!-- Resume Button (Paused state) -->
-      <button class="btn-action btn-resume hidden" id="resumeBtn" onclick="handleResume()">
-        <span>▶</span>
-        <span>Resume</span>
-      </button>
-
-      <!-- Reset Button -->
-      <button class="btn-action btn-reset" id="resetBtn" onclick="handleReset()">
-        <span>↻</span>
-        <span>Reset</span>
-      </button>
+    <!-- Controls -->
+    <div class="widget-controls">
+      <button class="btn btn-primary" id="startBtn" onclick="handleStart()">▶ Start</button>
+      <button class="btn btn-warning hidden" id="pauseBtn" onclick="handlePause()">⏸ Pause</button>
+      <button class="btn btn-primary hidden" id="resumeBtn" onclick="handleResume()">▶ Resume</button>
+      <button class="btn btn-purple hidden" id="skipBreakBtn" onclick="handleSkipBreak()">⏭ Skip</button>
+      <button class="btn btn-neutral" id="resetBtn" onclick="handleReset()">↻ Reset</button>
     </div>
   </div>
 
-  <svg class="resize-hint" viewBox="0 0 8 8" fill="white">
-    <line x1="8" y1="2" x2="2" y2="8" stroke="white" stroke-width="1.2"/>
-    <line x1="8" y1="5" x2="5" y2="8" stroke="white" stroke-width="1.2"/>
-  </svg>
-
   <script>
-    // Shared timer state
     let state = {
+      mode: 'free',
       state: 'ready',
       subject: '',
       startTime: null,
       elapsedSeconds: 0,
       durationSeconds: 0,
-      isPaused: false
+      isPaused: false,
+      phase: 'focus',
+      round: 1,
+      totalRounds: 4,
+      remainingSeconds: 25 * 60,
+      totalPhaseSeconds: 25 * 60,
     };
 
-    const timerClock  = document.getElementById('timerClock');
-    const statusBadge = document.getElementById('statusBadge');
-    const statusDot   = document.getElementById('statusDot');
-    const subjectLbl  = document.getElementById('subjectLabel');
-    const startBtn    = document.getElementById('startBtn');
-    const pauseBtn    = document.getElementById('pauseBtn');
-    const resumeBtn   = document.getElementById('resumeBtn');
-    const resetBtn    = document.getElementById('resetBtn');
+    const timerClock    = document.getElementById('timerClock');
+    const subjectLbl    = document.getElementById('subjectLbl');
+    const statusBadge   = document.getElementById('statusBadge');
+    const statusDot     = document.getElementById('statusDot');
+    const roundBadge    = document.getElementById('roundBadge');
+    const modeToggleBtn = document.getElementById('modeToggleBtn');
+    const startBtn      = document.getElementById('startBtn');
+    const pauseBtn      = document.getElementById('pauseBtn');
+    const resumeBtn     = document.getElementById('resumeBtn');
+    const skipBreakBtn  = document.getElementById('skipBreakBtn');
+    const resetBtn      = document.getElementById('resetBtn');
 
     function formatTime(totalSeconds) {
-      const h = Math.floor(totalSeconds / 3600);
-      const m = Math.floor((totalSeconds % 3600) / 60);
-      const s = totalSeconds % 60;
-      return [h, m, s].map(v => String(v).padStart(2, '0')).join(':');
+      const s = Math.max(0, Math.floor(totalSeconds));
+      const h = Math.floor(s / 3600);
+      const m = Math.floor((s % 3600) / 60);
+      const sec = s % 60;
+      return [h, m, sec].map(v => String(v).padStart(2, '0')).join(':');
     }
 
     function getLiveSeconds() {
-      const base = state.durationSeconds ?? state.elapsedSeconds ?? 0;
-      if (state.state === 'running' && !state.isPaused && state.startTime) {
-        return base + Math.floor((Date.now() - state.startTime) / 1000);
+      if (state.mode === 'focus') {
+        const total = state.totalPhaseSeconds || 25 * 60;
+        let elapsed = state.elapsedSeconds || 0;
+        if (state.state === 'running' && !state.isPaused && state.startTime) {
+          elapsed += Math.floor((Date.now() - state.startTime) / 1000);
+        }
+        return Math.max(0, total - elapsed);
+      } else {
+        const base = state.durationSeconds ?? state.elapsedSeconds ?? 0;
+        if (state.state === 'running' && !state.isPaused && state.startTime) {
+          return base + Math.floor((Date.now() - state.startTime) / 1000);
+        }
+        return base;
       }
-      return base;
     }
 
     function render() {
+      const isFocus = state.mode === 'focus';
+      const live = getLiveSeconds();
+
       // Clock
-      timerClock.textContent = formatTime(getLiveSeconds());
+      timerClock.textContent = formatTime(live);
+
+      // Mode Toggle button text
+      modeToggleBtn.textContent = isFocus ? 'FOCUS' : 'FREE';
+      modeToggleBtn.classList.toggle('focus-active', isFocus);
 
       // Subject
       const trimmed = (state.subject || '').trim();
       subjectLbl.textContent = trimmed ? `📚 ${trimmed}` : '📚 No subject';
 
-      // Status
+      // Status & Round Badges
       statusBadge.className = 'status-badge';
       statusDot.className = 'status-dot';
 
-      if (state.state === 'running' && !state.isPaused) {
-        statusBadge.textContent = 'Studying';
-        statusBadge.classList.add('running');
-        statusDot.classList.add('running');
-      } else if (state.state === 'paused' || state.isPaused) {
-        statusBadge.textContent = 'Paused';
-        statusBadge.classList.add('paused');
-        statusDot.classList.add('paused');
+      if (isFocus) {
+        roundBadge.classList.remove('hidden');
+        roundBadge.textContent = `R ${state.round || 1}/${state.totalRounds || 4}`;
+
+        const isBreak = state.phase === 'shortBreak' || state.phase === 'longBreak';
+
+        if (state.state === 'running' && !state.isPaused) {
+          if (isBreak) {
+            statusBadge.textContent = state.phase === 'longBreak' ? 'Long Break' : 'Break';
+            statusBadge.classList.add('break');
+            statusDot.classList.add('break');
+          } else {
+            statusBadge.textContent = 'Focusing';
+            statusBadge.classList.add('running');
+            statusDot.classList.add('running');
+          }
+        } else if (state.state === 'paused' || state.isPaused) {
+          statusBadge.textContent = isBreak ? 'Break Paused' : 'Paused';
+          statusBadge.classList.add('paused');
+          statusDot.classList.add('paused');
+        } else {
+          statusBadge.textContent = isBreak ? 'Break Ready' : 'Ready';
+        }
       } else {
-        statusBadge.textContent = 'Ready';
+        roundBadge.classList.add('hidden');
+        if (state.state === 'running' && !state.isPaused) {
+          statusBadge.textContent = 'Studying';
+          statusBadge.classList.add('running');
+          statusDot.classList.add('running');
+        } else if (state.state === 'paused' || state.isPaused) {
+          statusBadge.textContent = 'Paused';
+          statusBadge.classList.add('paused');
+          statusDot.classList.add('paused');
+        } else {
+          statusBadge.textContent = 'Ready';
+        }
       }
 
       // Buttons
-      startBtn.classList.toggle('hidden', state.state !== 'ready');
-      pauseBtn.classList.toggle('hidden', !(state.state === 'running' && !state.isPaused));
-      resumeBtn.classList.toggle('hidden', !(state.state === 'paused' || state.isPaused));
+      const isRunning = state.state === 'running' && !state.isPaused;
+      const isPaused = state.state === 'paused' || state.isPaused;
+      const isBreakPhase = isFocus && (state.phase === 'shortBreak' || state.phase === 'longBreak');
 
-      const isReadyEmpty = state.state === 'ready' && getLiveSeconds() === 0 && !trimmed;
-      resetBtn.disabled = isReadyEmpty;
+      startBtn.classList.toggle('hidden', state.state !== 'ready');
+      pauseBtn.classList.toggle('hidden', !isRunning);
+      resumeBtn.classList.toggle('hidden', !isPaused);
+      skipBreakBtn.classList.toggle('hidden', !isBreakPhase);
+
+      const isReadyEmpty = state.state === 'ready' && !trimmed;
+      resetBtn.disabled = isReadyEmpty && (!isFocus || state.phase === 'focus');
     }
 
-    // Live ticker (100ms for smooth sync)
+    // Ticker (100ms)
     setInterval(() => {
       if (state.state === 'running' && !state.isPaused) {
         render();
@@ -407,19 +482,22 @@
     // IPC: Listen for state updates
     if (window.electronAPI) {
       window.electronAPI.onTimerState((newState) => {
-        state = newState;
+        state = { ...state, ...newState };
         render();
       });
-
-      // Request initial state on load
       window.electronAPI.requestTimerState();
     }
 
-    // Actions
+    modeToggleBtn.addEventListener('click', () => {
+      const nextMode = state.mode === 'focus' ? 'free' : 'focus';
+      if (window.electronAPI) {
+        window.electronAPI.sendTimerAction('switch-mode', { mode: nextMode });
+      }
+    });
+
     function handleStart() {
       const trimmed = (state.subject || '').trim();
-      if (!trimmed) {
-        // Prompt user by focusing main window
+      if (!trimmed && (!state.mode || state.mode !== 'focus' || state.phase === 'focus')) {
         if (window.electronAPI) {
           window.electronAPI.focusMainWindow();
         }
@@ -442,10 +520,16 @@
       }
     }
 
+    function handleSkipBreak() {
+      if (window.electronAPI) {
+        window.electronAPI.sendTimerAction('skip-break');
+      }
+    }
+
     function handleReset() {
       const live = getLiveSeconds();
       if (state.state === 'running' || (state.state === 'paused' && live > 0)) {
-        if (!confirm('Reset timer to 00:00:00? Unsaved study time will be cleared.')) {
+        if (!confirm('Reset timer? Progress will be cleared.')) {
           return;
         }
       }

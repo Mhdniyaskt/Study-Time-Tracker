@@ -8,16 +8,17 @@ import WeeklyChart from '../components/dashboard/WeeklyChart';
 import MonthlyChart from '../components/dashboard/MonthlyChart';
 import SessionList from '../components/dashboard/SessionList';
 import EditSessionModal from '../components/common/EditSessionModal';
-import InPageWidget from '../components/widget/InPageWidget';
 
 export default function DashboardPage({ refreshTrigger, onRefreshNeeded, onNavigateHistory }) {
   const [dashboardData, setDashboardData] = useState({
     sessions: [],
     groupedSessions: [],
     subjectStats: [],
+    todaySubjectStats: [],
     todayTotal: 0,
     totalStudyTime: 0,
     weeklyTotal: 0,
+    weeklyDayTotals: [],
     monthlyTotal: 0,
     monthlySessions: 0,
     currentStreak: 0,
@@ -84,13 +85,17 @@ export default function DashboardPage({ refreshTrigger, onRefreshNeeded, onNavig
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <AddSessionForm onSessionAdded={handleRefresh} />
         <StudyTimer onSessionSaved={handleRefresh} />
-        <SubjectStats subjectStats={dashboardData.subjectStats} />
+        <SubjectStats
+          subjectStats={dashboardData.subjectStats}
+          todaySubjectStats={dashboardData.todaySubjectStats}
+        />
       </div>
 
       {/* Weekly Study Chart */}
       <WeeklyChart
         labels={dashboardData.weeklyChartLabels}
         data={dashboardData.weeklyChartData}
+        weeklyDayTotals={dashboardData.weeklyDayTotals}
       />
 
       {/* Monthly Study Chart */}
@@ -114,9 +119,6 @@ export default function DashboardPage({ refreshTrigger, onRefreshNeeded, onNavig
         onClose={() => setEditingSession(null)}
         onSessionUpdated={handleRefresh}
       />
-
-      {/* Browser Fallback Widget */}
-      <InPageWidget />
     </div>
   );
 }

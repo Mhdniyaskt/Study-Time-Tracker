@@ -75,4 +75,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   minimizeWindow: () => {
     ipcRenderer.send('minimize-window');
   },
+
+  showNotification: (options) => {
+    ipcRenderer.send('show-notification', options);
+  },
 });

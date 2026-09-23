@@ -5,7 +5,7 @@ export default function Header({ activePage, setActivePage, onOpenSettings }) {
   const { isDark, toggleTheme } = useTheme();
 
   return (
-    <header class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-10 transition-colors duration-200">
+    <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-0 z-10 transition-colors duration-200">
       <div className="max-w-7xl mx-auto px-4 py-4 flex flex-wrap items-center justify-between gap-3">
         <div 
           className="cursor-pointer" 

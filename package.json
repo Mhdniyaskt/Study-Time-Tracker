@@ -32,6 +32,8 @@
             "preload.js",
             "floating-timer.html",
             "server.js",
+            "build/icon.ico",
+            "build/icon.png",
             "models/**/*",
             "services/**/*",
             "controllers/**/*",
@@ -46,6 +48,7 @@
             "!dist/**"
         ],
         "win": {
+            "icon": "build/icon.ico",
             "target": [
                 {
                     "target": "nsis",
@@ -56,12 +59,11 @@
             ]
         },
         "nsis": {
-            "oneClick": false,
-            "allowToChangeInstallationDirectory": true,
+            "oneClick": true,
+            "perMachine": false,
             "createDesktopShortcut": true,
             "createStartMenuShortcut": true,
-            "shortcutName": "Study Time Tracker",
-            "license": "LICENSE.txt"
+            "shortcutName": "Study Time Tracker"
         }
     },
     "keywords": [

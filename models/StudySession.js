@@ -23,4 +23,7 @@ const studySessionSchema = new mongoose.Schema({
   },
 });
 
+studySessionSchema.index({ date: -1 });
+studySessionSchema.index({ subject: 1 });
+
 export default mongoose.model("StudySession", studySessionSchema);

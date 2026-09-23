@@ -189,23 +189,38 @@ mongoose.connection.on('reconnected', () => {
   console.log('MongoDB reconnected successfully.');
 });
 
+let httpServer = null;
+
+export async function stopServer() {
+  if (httpServer) {
+    await new Promise((resolve) => httpServer.close(resolve));
+  }
+  if (mongoose.connection.readyState !== 0) {
+    await mongoose.connection.close();
+  }
+}
+
 // Connect to MongoDB, then start server
-mongoose
+export const serverReadyPromise = mongoose
   .connect(process.env.MONGODB_URI)
   .then(() => {
     console.log("MongoDB connected successfully");
-    app.listen(PORT, () => {
-      const serverUrl = `http://localhost:${PORT}`;
-      console.log(`Server running at ${serverUrl}`);
-      console.log(`Environment: ${isDevelopment ? 'Development' : 'Production'}`);
+    return new Promise((resolve, reject) => {
+      httpServer = app.listen(PORT, (err) => {
+        if (err) return reject(err);
+        const serverUrl = `http://localhost:${PORT}`;
+        console.log(`Server running at ${serverUrl}`);
+        console.log(`Environment: ${isDevelopment ? 'Development' : 'Production'}`);
 
-      // Auto-open browser after server is ready (but not when running in Electron)
-      if (!isElectron) {
-        console.log("Opening browser...");
-        openBrowser(serverUrl);
-      } else {
-        console.log("Running inside Electron - browser launch skipped");
-      }
+        // Auto-open browser after server is ready (but not when running in Electron)
+        if (!isElectron) {
+          console.log("Opening browser...");
+          openBrowser(serverUrl);
+        } else {
+          console.log("Running inside Electron - browser launch skipped");
+        }
+        resolve(httpServer);
+      });
     });
   })
   .catch((err) => {
@@ -213,17 +228,20 @@ mongoose
     if (!isElectron) {
       process.exit(1);
     }
+    throw err;
   });
 
 // Graceful shutdown
 process.on('SIGTERM', async () => {
   console.log('SIGTERM received. Closing server gracefully...');
-  await mongoose.connection.close();
+  await stopServer();
   process.exit(0);
 });
 
 process.on('SIGINT', async () => {
   console.log('\nSIGINT received. Closing server gracefully...');
-  await mongoose.connection.close();
+  await stopServer();
   process.exit(0);
 });
+
+export { app, httpServer };

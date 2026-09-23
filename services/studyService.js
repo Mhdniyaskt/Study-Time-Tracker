@@ -259,19 +259,61 @@ export async function calculateDashboardData() {
   }
   const groupedSessions = Object.values(groupsMap);
 
+  // Time formatting helper
+  const formatHM = (mins) => {
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    if (h > 0 && m > 0) return `${h}h ${m}m`;
+    if (h > 0) return `${h}h`;
+    return `${m}m`;
+  };
+
+  // Today's subject-wise stats: filter sessions with today's date
+  const todaySessions = sessions.filter((s) => toLocalDateString(s.date) === todayStr);
+  const todaySubjectMap = {};
+  for (const session of todaySessions) {
+    const key = session.subject.trim();
+    if (!todaySubjectMap[key]) {
+      todaySubjectMap[key] = { totalMinutes: 0, totalSeconds: 0, count: 0 };
+    }
+    todaySubjectMap[key].totalMinutes += session.duration;
+    todaySubjectMap[key].totalSeconds += (session.durationSeconds != null ? session.durationSeconds : session.duration * 60);
+    todaySubjectMap[key].count += 1;
+  }
+  const todaySubjectStats = Object.entries(todaySubjectMap)
+    .map(([subject, data]) => ({
+      subject,
+      totalMinutes: data.totalMinutes,
+      totalSeconds: data.totalSeconds,
+      count: data.count,
+      formattedTime: formatHM(data.totalMinutes),
+    }))
+    .sort((a, b) => b.totalMinutes - a.totalMinutes);
+
   // Subject-wise stats: group by subject, sum duration, sort descending
   const subjectMap = {};
   for (const session of sessions) {
     const key = session.subject.trim();
-    if (!subjectMap[key]) subjectMap[key] = 0;
-    subjectMap[key] += session.duration;
+    if (!subjectMap[key]) {
+      subjectMap[key] = { totalMinutes: 0, totalSeconds: 0, count: 0 };
+    }
+    subjectMap[key].totalMinutes += session.duration;
+    subjectMap[key].totalSeconds += (session.durationSeconds != null ? session.durationSeconds : session.duration * 60);
+    subjectMap[key].count += 1;
   }
   const subjectStats = Object.entries(subjectMap)
-    .map(([subject, totalMinutes]) => ({ subject, totalMinutes }))
+    .map(([subject, data]) => ({
+      subject,
+      totalMinutes: data.totalMinutes,
+      totalSeconds: data.totalSeconds,
+      count: data.count,
+      formattedTime: formatHM(data.totalMinutes),
+    }))
     .sort((a, b) => b.totalMinutes - a.totalMinutes);
 
-  // Weekly chart data: Mon-Sun for current week
+  // Weekly chart data & horizontal day bars: Mon-Sun for current week
   const weeklyChartData = [];
+  const weeklyDayTotals = [];
   const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
   for (let i = 0; i < 7; i++) {
@@ -279,11 +321,22 @@ export async function calculateDashboardData() {
     date.setDate(weekStart.getDate() + i);
     const dateStr = toLocalDateString(date);
 
-    const dayTotal = sessions
-      .filter((s) => toLocalDateString(s.date) === dateStr)
-      .reduce((sum, s) => sum + s.duration, 0);
+    const daySessions = sessions.filter((s) => toLocalDateString(s.date) === dateStr);
+    const dayTotal = daySessions.reduce((sum, s) => sum + s.duration, 0);
+    const dayTotalSeconds = daySessions.reduce((sum, s) => sum + (s.durationSeconds != null ? s.durationSeconds : s.duration * 60), 0);
 
-    weeklyChartData.push(Number((dayTotal / 60).toFixed(2)));
+    const hoursNum = Number((dayTotal / 60).toFixed(2));
+    weeklyChartData.push(hoursNum);
+
+    weeklyDayTotals.push({
+      dayName: dayNames[i],
+      dateStr,
+      totalMinutes: dayTotal,
+      totalSeconds: dayTotalSeconds,
+      hours: hoursNum,
+      formattedTime: formatHM(dayTotal),
+      isToday: dateStr === todayStr,
+    });
   }
 
   // Monthly chart data: day 1 to last day of current month
@@ -308,10 +361,12 @@ export async function calculateDashboardData() {
     sessions,
     groupedSessions,
     subjectStats,
+    todaySubjectStats,
     todayTotal,
     todayTotalSeconds,
     totalStudyTime,
     weeklyTotal,
+    weeklyDayTotals,
     monthlyTotal,
     monthlySessions,
     currentStreak,
@@ -409,8 +464,12 @@ export async function calculateStatisticsData({ period = 'all-time', startDate =
       const start = new Date(filterStart);
       const end = new Date(filterEnd);
       totalDaysInPeriod = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
+    } else if (!filterStart && !filterEnd) {
+      // For all-time: calculate average across active study days
+      const uniqueDays = new Set(sessions.map((s) => toLocalDateString(s.date))).size;
+      totalDaysInPeriod = Math.max(1, uniqueDays);
     }
-    averageStudyTimePerDay = totalStudyTime / totalDaysInPeriod;
+    averageStudyTimePerDay = Math.round(totalStudyTime / totalDaysInPeriod);
   }
 
   const subjectMap = {};
@@ -668,7 +727,13 @@ export async function calculateHistoryData({
         dailyTotals: [
           {
             $group: {
-              _id: { $dateToString: { format: '%Y-%m-%d', date: '$date' } },
+              _id: {
+                $dateToString: {
+                  format: '%Y-%m-%d',
+                  date: '$date',
+                  timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+                },
+              },
               minutes: { $sum: '$duration' },
             },
           },

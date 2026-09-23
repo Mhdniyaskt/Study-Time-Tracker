@@ -14,6 +14,11 @@ import {
 
 const router = express.Router();
 
+// Health check endpoint
+router.get("/health", (req, res) => {
+  res.json({ status: "ok", app: "study-time-tracker" });
+});
+
 // Dashboard data
 router.get("/dashboard", getDashboard);
 

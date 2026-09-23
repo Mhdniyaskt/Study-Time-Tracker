@@ -90,10 +90,10 @@ export const api = {
     return request(`${API_BASE}/settings`);
   },
 
-  updateSettings({ dailyGoalHours }) {
+  updateSettings(settingsPayload) {
     return request(`${API_BASE}/settings`, {
       method: 'POST',
-      body: JSON.stringify({ dailyGoalHours }),
+      body: JSON.stringify(settingsPayload),
     });
   },
 

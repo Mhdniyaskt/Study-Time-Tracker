@@ -132,7 +132,7 @@ async function run() {
   // Test N: No subject -> Cannot start
   const widgetInitialState = await widgetWindow.webContents.executeJavaScript(`({
     clock: document.getElementById('timerClock').textContent,
-    subject: document.getElementById('subjectLabel').textContent,
+    subject: document.getElementById('subjectLbl').textContent,
     status: document.getElementById('statusBadge').textContent,
     startHidden: document.getElementById('startBtn').classList.contains('hidden'),
     pauseHidden: document.getElementById('pauseBtn').classList.contains('hidden'),
@@ -151,7 +151,7 @@ async function run() {
   await sleep(300);
 
   const widgetRunningState = await widgetWindow.webContents.executeJavaScript(`({
-    subject: document.getElementById('subjectLabel').textContent,
+    subject: document.getElementById('subjectLbl').textContent,
     status: document.getElementById('statusBadge').textContent,
     startHidden: document.getElementById('startBtn').classList.contains('hidden'),
     pauseHidden: document.getElementById('pauseBtn').classList.contains('hidden'),
@@ -203,7 +203,7 @@ async function run() {
   const widgetAfterReset = await widgetWindow.webContents.executeJavaScript(`({
     clock: document.getElementById('timerClock').textContent,
     status: document.getElementById('statusBadge').textContent,
-    subject: document.getElementById('subjectLabel').textContent,
+    subject: document.getElementById('subjectLbl').textContent,
     startHidden: document.getElementById('startBtn').classList.contains('hidden'),
     pauseHidden: document.getElementById('pauseBtn').classList.contains('hidden'),
     resumeHidden: document.getElementById('resumeBtn').classList.contains('hidden'),
