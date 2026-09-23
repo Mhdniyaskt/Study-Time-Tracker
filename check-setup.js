@@ -79,7 +79,7 @@ if (fs.existsSync(envPath)) {
 
 // Check 3: Required folders exist
 console.log('✓ Checking project structure...');
-const requiredDirs = ['models', 'views'];
+const requiredDirs = ['models', 'services', 'controllers', 'routes', 'src', 'dist-react'];
 let allDirsExist = true;
 
 for (const dir of requiredDirs) {
@@ -99,13 +99,17 @@ console.log('✓ Checking required files...');
 const requiredFiles = [
   'server.js',
   'package.json',
+  'electron-main.js',
+  'preload.js',
+  'floating-timer.html',
   'models/StudySession.js',
   'models/Settings.js',
-  'views/index.ejs',
-  'views/edit.ejs',
-  'views/error.ejs',
-  'views/history.ejs',
-  'views/statistics.ejs'
+  'services/studyService.js',
+  'controllers/studyController.js',
+  'routes/api.js',
+  'src/App.jsx',
+  'src/main.jsx',
+  'dist-react/index.html'
 ];
 
 let allFilesExist = true;

@@ -80,7 +80,9 @@ let sharedTimerState = {
   subject:        '',
   startTime:      null,      // Date.now() timestamp of last start/resume
   elapsedSeconds: 0,
-  isPaused:       false
+  durationSeconds: 0,
+  isPaused:       false,
+  isSubmitting:   false,
 };
 
 function broadcastTimerState() {
@@ -97,86 +99,92 @@ ipcMain.on('timer-action', (_event, { action, data }) => {
 
   switch (action) {
 
-    case 'start':
-      if (sharedTimerState.state !== 'ready') break;
-      sharedTimerState.state          = 'running';
-      sharedTimerState.subject        = (data && data.subject) ? data.subject : '';
-      sharedTimerState.startTime      = now;
-      sharedTimerState.elapsedSeconds = 0;
-      sharedTimerState.isPaused       = false;
+    case 'start': {
+      const subject = (data && data.subject) ? data.subject.trim() : sharedTimerState.subject.trim();
+      if (!subject) break;
+      sharedTimerState.state           = 'running';
+      sharedTimerState.subject         = subject;
+      sharedTimerState.startTime       = now;
+      sharedTimerState.elapsedSeconds  = (data && typeof data.elapsedSeconds === 'number') ? data.elapsedSeconds : 0;
+      sharedTimerState.durationSeconds = sharedTimerState.elapsedSeconds;
+      sharedTimerState.isPaused        = false;
+      sharedTimerState.isSubmitting    = false;
       break;
+    }
 
-    case 'stop':   // pause (the main-window "Stop" button toggles pause/resume)
+    case 'stop':
+    case 'pause': {
       if (sharedTimerState.state !== 'running') break;
-      if (!sharedTimerState.isPaused && sharedTimerState.startTime) {
-        sharedTimerState.elapsedSeconds += Math.floor((now - sharedTimerState.startTime) / 1000);
-      }
-      sharedTimerState.isPaused  = true;
-      sharedTimerState.startTime = null;
-      // Map to 'paused' so the widget can render the right buttons
-      sharedTimerState.state = 'paused';
-      break;
-
-    case 'pause':
-      if (sharedTimerState.state !== 'running' || sharedTimerState.isPaused) break;
       if (sharedTimerState.startTime) {
         sharedTimerState.elapsedSeconds += Math.floor((now - sharedTimerState.startTime) / 1000);
       }
-      sharedTimerState.isPaused  = true;
-      sharedTimerState.startTime = null;
-      sharedTimerState.state     = 'paused';
+      sharedTimerState.durationSeconds = sharedTimerState.elapsedSeconds;
+      sharedTimerState.isPaused        = true;
+      sharedTimerState.startTime       = null;
+      sharedTimerState.state           = 'paused';
       break;
+    }
 
-    case 'resume':
+    case 'resume': {
       if (sharedTimerState.state !== 'paused') break;
       sharedTimerState.isPaused  = false;
       sharedTimerState.startTime = now;
       sharedTimerState.state     = 'running';
       break;
+    }
 
-    case 'reset':
-      sharedTimerState.state          = 'ready';
-      sharedTimerState.subject        = '';
-      sharedTimerState.startTime      = null;
-      sharedTimerState.elapsedSeconds = 0;
-      sharedTimerState.isPaused       = false;
+    case 'reset': {
+      sharedTimerState.state           = 'ready';
+      sharedTimerState.subject         = '';
+      sharedTimerState.startTime       = null;
+      sharedTimerState.elapsedSeconds  = 0;
+      sharedTimerState.durationSeconds = 0;
+      sharedTimerState.isPaused        = false;
+      sharedTimerState.isSubmitting    = false;
       break;
+    }
 
     case 'stop-and-save': {
-      // Compute final elapsed
       let finalElapsed = sharedTimerState.elapsedSeconds;
       if (!sharedTimerState.isPaused && sharedTimerState.startTime) {
         finalElapsed += Math.floor((now - sharedTimerState.startTime) / 1000);
       }
-      // Ask the dashboard renderer to call /timer/save (it has the cookie session)
       if (mainWindow && !mainWindow.isDestroyed()) {
         mainWindow.webContents.send('save-timer-session', {
-          subject:        sharedTimerState.subject,
-          elapsedSeconds: finalElapsed
+          subject:         sharedTimerState.subject,
+          elapsedSeconds:  finalElapsed,
+          durationSeconds: finalElapsed,
         });
       }
-      // Reset immediately; the dashboard will reload on success
-      sharedTimerState.state          = 'ready';
-      sharedTimerState.subject        = '';
-      sharedTimerState.startTime      = null;
-      sharedTimerState.elapsedSeconds = 0;
-      sharedTimerState.isPaused       = false;
+      sharedTimerState.state           = 'ready';
+      sharedTimerState.subject         = '';
+      sharedTimerState.startTime       = null;
+      sharedTimerState.elapsedSeconds  = 0;
+      sharedTimerState.durationSeconds = 0;
+      sharedTimerState.isPaused        = false;
+      sharedTimerState.isSubmitting    = false;
       break;
     }
 
-    case 'update-state':
-      // Dashboard syncs its localStorage state into the shared state
+    case 'update-state': {
       if (data) {
-        // Map localStorage timerState ('running'/'paused'/'ready') to sharedTimerState
-        if (data.timerState !== undefined) sharedTimerState.state          = data.timerState;
-        if (data.state      !== undefined) sharedTimerState.state          = data.state;
-        if (data.subject    !== undefined) sharedTimerState.subject        = data.subject;
-        if (data.startTime  !== undefined) sharedTimerState.startTime      = data.startTime;
-        if (data.elapsedSeconds !== undefined) sharedTimerState.elapsedSeconds = data.elapsedSeconds;
-        // Derive isPaused from state when not explicitly provided
+        if (data.timerState !== undefined) sharedTimerState.state = data.timerState;
+        if (data.state      !== undefined) sharedTimerState.state = data.state;
+        if (data.subject    !== undefined) sharedTimerState.subject = data.subject;
+        if (data.startTime  !== undefined) sharedTimerState.startTime = data.startTime;
+        if (data.elapsedSeconds !== undefined) {
+          sharedTimerState.elapsedSeconds = data.elapsedSeconds;
+          sharedTimerState.durationSeconds = data.elapsedSeconds;
+        }
+        if (data.durationSeconds !== undefined) {
+          sharedTimerState.durationSeconds = data.durationSeconds;
+          sharedTimerState.elapsedSeconds = data.durationSeconds;
+        }
         sharedTimerState.isPaused = (sharedTimerState.state === 'paused');
+        if (data.isSubmitting !== undefined) sharedTimerState.isSubmitting = data.isSubmitting;
       }
       break;
+    }
   }
 
   broadcastTimerState();
@@ -240,7 +248,7 @@ function openWidgetWindow() {
     x:      saved ? saved.x      : undefined,   // undefined → Electron centres it
     y:      saved ? saved.y      : undefined,
     width:  saved ? Math.max(220, saved.width)  : 260,
-    height: saved ? Math.max(180, saved.height) : 230,
+    height: saved ? Math.max(160, saved.height) : 195,
   };
 
   widgetWindow = new BrowserWindow({
@@ -248,8 +256,8 @@ function openWidgetWindow() {
     y:               bounds.y,
     width:           bounds.width,
     height:          bounds.height,
-    minWidth:        200,
-    minHeight:       170,
+    minWidth:        220,
+    minHeight:       160,
     frame:           false,          // no OS titlebar — we draw our own
     transparent:     false,
     alwaysOnTop:     true,           // stays above every other window
@@ -299,7 +307,19 @@ function createMainWindow() {
     },
   });
 
-  mainWindow.loadURL(`http://localhost:${PORT}`);
+  if (isDev) {
+    isServerAlreadyRunning('http://localhost:5173').then((viteUp) => {
+      if (viteUp && mainWindow && !mainWindow.isDestroyed()) {
+        console.log('[electron-main] Loading React Vite dev server: http://localhost:5173');
+        mainWindow.loadURL('http://localhost:5173');
+      } else if (mainWindow && !mainWindow.isDestroyed()) {
+        console.log(`[electron-main] Loading Express server: http://localhost:${PORT}`);
+        mainWindow.loadURL(`http://localhost:${PORT}`);
+      }
+    });
+  } else {
+    mainWindow.loadURL(`http://localhost:${PORT}`);
+  }
 
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();

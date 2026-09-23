@@ -8,6 +8,8 @@
     "license": "ISC",
     "scripts": {
         "dev": "nodemon server.js",
+        "dev:react": "vite",
+        "build:react": "vite build",
         "start": "node server.js",
         "electron": "electron .",
         "electron-dev": "electron . --dev",
@@ -31,7 +33,10 @@
             "floating-timer.html",
             "server.js",
             "models/**/*",
-            "views/**/*",
+            "services/**/*",
+            "controllers/**/*",
+            "routes/**/*",
+            "dist-react/**/*",
             "node_modules/**/*",
             ".env.example",
             "!node_modules/@yao-pkg/**",
@@ -44,7 +49,9 @@
             "target": [
                 {
                     "target": "nsis",
-                    "arch": ["x64"]
+                    "arch": [
+                        "x64"
+                    ]
                 }
             ]
         },
@@ -64,17 +71,26 @@
         "productivity"
     ],
     "dependencies": {
+        "@fullcalendar/daygrid": "^6.1.21",
+        "@fullcalendar/react": "^6.1.21",
+        "chart.js": "^4.5.1",
         "dotenv": "^17.4.2",
-        "ejs": "^6.0.1",
         "express": "^5.2.1",
         "method-override": "^3.0.0",
-        "mongoose": "^9.9.4"
+        "mongoose": "^9.9.4",
+        "react": "^19.3.0",
+        "react-dom": "^19.3.0"
     },
     "devDependencies": {
+        "@vitejs/plugin-react": "^4.7.0",
         "@yao-pkg/pkg": "^6.22.0",
+        "autoprefixer": "^10.6.1",
         "electron": "^44.1.1",
         "electron-builder": "^25.1.8",
         "esbuild": "^0.24.2",
-        "nodemon": "^3.1.14"
+        "nodemon": "^3.1.14",
+        "postcss": "^8.5.28",
+        "tailwindcss": "^3.4.19",
+        "vite": "^6.4.3"
     }
 }
