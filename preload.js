@@ -79,4 +79,34 @@ contextBridge.exposeInMainWorld('electronAPI', {
   showNotification: (options) => {
     ipcRenderer.send('show-notification', options);
   },
+
+  // ── Auto-Updater ──────────────────────────────────────────────────────────
+
+  /** Ask main process to check for updates */
+  checkForUpdates: () => {
+    ipcRenderer.send('check-for-updates');
+  },
+
+  /** Start downloading available update */
+  startUpdateDownload: () => {
+    ipcRenderer.send('start-update-download');
+  },
+
+  /** Quit and install downloaded update */
+  restartAndInstallUpdate: () => {
+    ipcRenderer.send('restart-and-install-update');
+  },
+
+  /** Subscribe to update status changes (available, downloading, downloaded, error, etc.) */
+  onUpdateStatus: (callback) => {
+    ipcRenderer.on('update-status', (_event, data) => callback(data));
+  },
+
+  /** Subscribe to update download progress */
+  onUpdateProgress: (callback) => {
+    ipcRenderer.on('update-progress', (_event, data) => callback(data));
+  },
+
+  /** Get current application version from Electron */
+  getAppVersion: () => ipcRenderer.invoke('get-app-version'),
 });

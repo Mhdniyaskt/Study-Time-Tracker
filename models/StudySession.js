@@ -21,9 +21,15 @@ const studySessionSchema = new mongoose.Schema({
     type: Date,
     default: Date.now,
   },
+  sessionId: {
+    type: String,
+    default: null,
+    sparse: true,
+  },
 });
 
 studySessionSchema.index({ date: -1 });
 studySessionSchema.index({ subject: 1 });
+studySessionSchema.index({ sessionId: 1 }, { sparse: true, unique: true });
 
 export default mongoose.model("StudySession", studySessionSchema);

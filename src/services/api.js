@@ -98,11 +98,16 @@ export const api = {
   },
 
   // ── Study Timer Save ─────────────────────────────────────────────────────
-  saveTimerSession({ subject, elapsedSeconds }) {
+  saveTimerSession({ subject, elapsedSeconds, durationSeconds, sessionId }) {
     // /timer/save endpoint exists directly on the backend
     return request('/timer/save', {
       method: 'POST',
-      body: JSON.stringify({ subject, elapsedSeconds }),
+      body: JSON.stringify({
+        subject,
+        elapsedSeconds,
+        durationSeconds: durationSeconds ?? elapsedSeconds,
+        sessionId,
+      }),
     });
   },
 };

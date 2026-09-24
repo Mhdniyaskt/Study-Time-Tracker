@@ -1,6 +1,6 @@
 {
     "name": "study-time-tracker",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "type": "module",
     "main": "electron-main.js",
     "author": "Your Name",
@@ -23,6 +23,13 @@
         "appId": "com.studytimetracker.app",
         "productName": "Study Time Tracker",
         "artifactName": "${productName} Setup.${ext}",
+        "publish": [
+            {
+                "provider": "github",
+                "owner": "Mhdniyaskt",
+                "repo": "Study-Time-Tracker"
+            }
+        ],
         "directories": {
             "output": "dist",
             "buildResources": "build"
@@ -77,6 +84,7 @@
         "@fullcalendar/react": "^6.1.21",
         "chart.js": "^4.5.1",
         "dotenv": "^17.4.2",
+        "electron-updater": "^6.8.9",
         "express": "^5.2.1",
         "method-override": "^3.0.0",
         "mongoose": "^9.9.4",

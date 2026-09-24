@@ -5,6 +5,14 @@ const TimerContext = createContext();
 const TIMER_STORAGE_KEY = 'studyTimerState';
 const FOCUS_STORAGE_KEY = 'studyFocusTimerState';
 const TIMER_MODE_KEY = 'studyTimerMode';
+const COMPLETED_FOCUS_STORAGE_KEY = 'studyFocusCompletedSessionIds';
+
+/**
+ * Generate a unique completion / session identifier for a Focus interval
+ */
+export function generateFocusSessionId(round = 1) {
+  return `focus_r${round}_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+}
 
 /**
  * Modern gentle chime using Web Audio API
@@ -86,12 +94,49 @@ export function TimerProvider({ children, onSessionSaved }) {
   const [focusElapsedSeconds, setFocusElapsedSeconds] = useState(0);
   const [focusRemainingSeconds, setFocusRemainingSeconds] = useState(25 * 60);
 
+  // Focus Session ID for idempotency tracking
+  const [focusSessionId, setFocusSessionId] = useState(() => {
+    try {
+      const saved = localStorage.getItem(FOCUS_STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.focusSessionId) return parsed.focusSessionId;
+      }
+    } catch (_) {}
+    return generateFocusSessionId(1);
+  });
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [warningMessage, setWarningMessage] = useState('');
   const [showInPageWidget, setShowInPageWidget] = useState(false);
 
   const hasElectron = typeof window !== 'undefined' && Boolean(window.electronAPI);
   const isSubmittingRef = useRef(false);
+  const isCompletingFocusRef = useRef(false);
+
+  // Set of completed focus session IDs to prevent duplicate saves across ticks or reloads
+  const completedFocusIdsRef = useRef(new Set());
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(COMPLETED_FOCUS_STORAGE_KEY);
+      if (stored) {
+        const arr = JSON.parse(stored);
+        if (Array.isArray(arr)) {
+          completedFocusIdsRef.current = new Set(arr);
+        }
+      }
+    } catch (_) {}
+  }, []);
+
+  const markFocusSessionCompleted = useCallback((sessionId) => {
+    if (!sessionId) return;
+    completedFocusIdsRef.current.add(sessionId);
+    try {
+      const arr = Array.from(completedFocusIdsRef.current).slice(-100);
+      localStorage.setItem(COMPLETED_FOCUS_STORAGE_KEY, JSON.stringify(arr));
+    } catch (_) {}
+  }, []);
 
   // Load backend settings
   const refreshSettings = useCallback(async () => {
@@ -139,6 +184,7 @@ export function TimerProvider({ children, onSessionSaved }) {
     focusState,
     focusStartTime,
     focusElapsedSeconds,
+    focusSessionId,
     settings,
   });
 
@@ -154,6 +200,7 @@ export function TimerProvider({ children, onSessionSaved }) {
       focusState,
       focusStartTime,
       focusElapsedSeconds,
+      focusSessionId,
       settings,
     };
   }, [
@@ -167,6 +214,7 @@ export function TimerProvider({ children, onSessionSaved }) {
     focusState,
     focusStartTime,
     focusElapsedSeconds,
+    focusSessionId,
     settings,
   ]);
 
@@ -231,6 +279,7 @@ export function TimerProvider({ children, onSessionSaved }) {
         durationSeconds: current.timerElapsedSeconds,
       }));
       localStorage.setItem(FOCUS_STORAGE_KEY, JSON.stringify({
+        focusSessionId: current.focusSessionId,
         focusPhase: current.focusPhase,
         focusRound: current.focusRound,
         focusState: current.focusState,
@@ -257,6 +306,7 @@ export function TimerProvider({ children, onSessionSaved }) {
         totalRounds: current.settings.roundsUntilLongBreak || 4,
         remainingSeconds: current.timerMode === 'focus' ? liveFocusRemaining : liveFree,
         totalPhaseSeconds: phaseTotalSecs,
+        sessionId: current.focusSessionId,
       });
     }
   }, [hasElectron, getPhaseDurationSeconds]);
@@ -292,12 +342,16 @@ export function TimerProvider({ children, onSessionSaved }) {
 
   const resetFocusTimerDirect = useCallback(() => {
     const totalSecs = getPhaseDurationSeconds('focus');
+    const newSessionId = generateFocusSessionId(1);
+    setFocusSessionId(newSessionId);
     setFocusState('ready');
     setFocusPhase('focus');
+    setFocusRound(1);
     setFocusStartTime(null);
     setFocusElapsedSeconds(0);
     setFocusRemainingSeconds(totalSecs);
     setWarningMessage('');
+    isCompletingFocusRef.current = false;
     localStorage.removeItem(FOCUS_STORAGE_KEY);
 
     if (hasElectron) {
@@ -343,6 +397,7 @@ export function TimerProvider({ children, onSessionSaved }) {
         let restoredState = parsed.focusState || 'ready';
         let restoredStartTime = parsed.focusStartTime || null;
         let restoredElapsed = parsed.focusElapsedSeconds || 0;
+        let restoredSessionId = parsed.focusSessionId || generateFocusSessionId(restoredRound);
 
         if (restoredState === 'running' && restoredStartTime) {
           const now = Date.now();
@@ -350,14 +405,23 @@ export function TimerProvider({ children, onSessionSaved }) {
           restoredStartTime = now;
         }
 
+        const phaseSecs = getPhaseDurationSeconds(restoredPhase);
+        const remaining = Math.max(0, phaseSecs - restoredElapsed);
+
+        // If restored state has remaining <= 0 and was already completed,
+        // prevent it from staying in 'running' and triggering an unintended save
+        if (remaining <= 0 && completedFocusIdsRef.current.has(restoredSessionId)) {
+          restoredState = 'ready';
+          restoredStartTime = null;
+        }
+
+        setFocusSessionId(restoredSessionId);
         setFocusPhase(restoredPhase);
         setFocusRound(restoredRound);
         setFocusState(restoredState);
         setFocusStartTime(restoredStartTime);
         setFocusElapsedSeconds(restoredElapsed);
-
-        const phaseSecs = getPhaseDurationSeconds(restoredPhase);
-        setFocusRemainingSeconds(Math.max(0, phaseSecs - restoredElapsed));
+        setFocusRemainingSeconds(remaining);
       } catch (e) {
         console.error('Failed to parse focus timer state:', e);
       }
@@ -375,6 +439,7 @@ export function TimerProvider({ children, onSessionSaved }) {
         }
 
         if (s.mode === 'focus') {
+          if (s.sessionId) setFocusSessionId(s.sessionId);
           if (s.phase) setFocusPhase(s.phase);
           if (s.round) setFocusRound(s.round);
           if (s.state) setFocusState(s.state);
@@ -430,115 +495,140 @@ export function TimerProvider({ children, onSessionSaved }) {
 
   // ── POMODORO AUTO-TRANSITION HANDLER ───────────────────────────────────────
   const handleFocusPhaseComplete = useCallback(async () => {
-    const {
-      focusPhase: currentPhase,
-      focusRound: currentRound,
-      timerSubject: currentSubj,
-      settings: currentSettings,
-    } = stateRef.current;
+    try {
+      const {
+        focusPhase: currentPhase,
+        focusRound: currentRound,
+        timerSubject: currentSubj,
+        settings: currentSettings,
+        focusSessionId: currentSessionId,
+      } = stateRef.current;
 
-    // 1. Play Completion Chime & System Notification
-    if (currentSettings.notificationsEnabled) {
-      playChime();
-      const title = currentPhase === 'focus' ? 'Focus Session Complete! 🎉' : (currentPhase === 'longBreak' ? 'Long Break Finished! 🌟' : 'Break Finished! ⚡');
-      const body = currentPhase === 'focus' ? 'Great job! Time for a rest.' : 'Ready to start your next focus session?';
+      // 1. Play Completion Chime & System Notification
+      if (currentSettings.notificationsEnabled) {
+        playChime();
+        const title = currentPhase === 'focus' ? 'Focus Session Complete! 🎉' : (currentPhase === 'longBreak' ? 'Long Break Finished! 🌟' : 'Break Finished! ⚡');
+        const body = currentPhase === 'focus' ? 'Great job! Time for a rest.' : 'Ready to start your next focus session?';
 
-      if (hasElectron && window.electronAPI && typeof window.electronAPI.showNotification === 'function') {
-        window.electronAPI.showNotification({ title, body });
-      } else if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
-        try {
-          new Notification(title, { body });
-        } catch (_) {}
+        if (hasElectron && window.electronAPI && typeof window.electronAPI.showNotification === 'function') {
+          window.electronAPI.showNotification({ title, body });
+        } else if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+          try {
+            new Notification(title, { body });
+          } catch (_) {}
+        }
       }
-    }
 
-    // 2. If completing FOCUS phase: auto-save completed study session!
-    if (currentPhase === 'focus') {
-      const focusSecs = Math.max(1, (currentSettings.focusDuration || 25) * 60);
-      const subjectToSave = (currentSubj || '').trim() || 'Focus Session';
+      // 2. If completing FOCUS phase: auto-save completed study session!
+      if (currentPhase === 'focus') {
+        const focusSecs = Math.max(1, (currentSettings.focusDuration || 25) * 60);
+        const subjectToSave = (currentSubj || '').trim() || 'Focus Session';
+        const completionId = currentSessionId || generateFocusSessionId(currentRound);
 
-      try {
-        await api.saveTimerSession({
-          subject: subjectToSave,
-          elapsedSeconds: focusSecs,
-          durationSeconds: focusSecs,
+        console.log(`[FOCUS] Round completed: Round ${currentRound}, Completion ID: ${completionId}`);
+
+        if (completedFocusIdsRef.current.has(completionId)) {
+          console.warn(`[FOCUS] Duplicate completion ignored: ${completionId}`);
+        } else {
+          markFocusSessionCompleted(completionId);
+          console.log(`[FOCUS] Save requested for ${focusSecs}s (Completion ID: ${completionId})`);
+          try {
+            const saveRes = await api.saveTimerSession({
+              subject: subjectToSave,
+              elapsedSeconds: focusSecs,
+              durationSeconds: focusSecs,
+              sessionId: completionId,
+            });
+            console.log(`[FOCUS] Save accepted: ${completionId}`, saveRes);
+            if (onSessionSaved) onSessionSaved();
+          } catch (err) {
+            console.error('Auto-save focus session failed:', err);
+          }
+        }
+
+        // Determine next phase considering disableShortBreaks and disableLongBreaks
+        const roundsMax = currentSettings.roundsUntilLongBreak || 4;
+        const isLongBreakTime = currentRound >= roundsMax;
+
+        let nextPhase;
+        let nextRound = currentRound;
+
+        if (isLongBreakTime) {
+          if (!currentSettings.disableLongBreaks) {
+            nextPhase = 'longBreak';
+            nextRound = 1;
+          } else if (!currentSettings.disableShortBreaks) {
+            nextPhase = 'shortBreak';
+            nextRound = 1;
+          } else {
+            nextPhase = 'focus';
+            nextRound = 1;
+          }
+        } else {
+          if (!currentSettings.disableShortBreaks) {
+            nextPhase = 'shortBreak';
+            nextRound = currentRound + 1;
+          } else {
+            nextPhase = 'focus';
+            nextRound = currentRound + 1;
+          }
+        }
+
+        const nextPhaseSecs = getPhaseDurationSeconds(nextPhase, currentSettings);
+        const isGoingToBreak = (nextPhase === 'shortBreak' || nextPhase === 'longBreak');
+        const autoStart = isGoingToBreak
+          ? Boolean(currentSettings.autoStartBreaks)
+          : Boolean(currentSettings.autoStartWork);
+        const now = Date.now();
+
+        // If transitioning into another focus round, create a brand-new unique completion ID
+        const nextSessionId = nextPhase === 'focus' ? generateFocusSessionId(nextRound) : null;
+
+        setFocusSessionId(nextSessionId);
+        setFocusPhase(nextPhase);
+        setFocusRound(nextRound);
+        setFocusState(autoStart ? 'running' : 'ready');
+        setFocusStartTime(autoStart ? now : null);
+        setFocusElapsedSeconds(0);
+        setFocusRemainingSeconds(nextPhaseSecs);
+
+        persistState({
+          focusSessionId: nextSessionId,
+          focusPhase: nextPhase,
+          focusRound: nextRound,
+          focusState: autoStart ? 'running' : 'ready',
+          focusStartTime: autoStart ? now : null,
+          focusElapsedSeconds: 0,
         });
-        if (onSessionSaved) onSessionSaved();
-      } catch (err) {
-        console.error('Auto-save focus session failed:', err);
-      }
-
-      // Determine next phase considering disableShortBreaks and disableLongBreaks
-      const roundsMax = currentSettings.roundsUntilLongBreak || 4;
-      const isLongBreakTime = currentRound >= roundsMax;
-
-      let nextPhase;
-      let nextRound = currentRound;
-
-      if (isLongBreakTime) {
-        if (!currentSettings.disableLongBreaks) {
-          nextPhase = 'longBreak';
-          nextRound = 1;
-        } else if (!currentSettings.disableShortBreaks) {
-          nextPhase = 'shortBreak';
-          nextRound = 1;
-        } else {
-          nextPhase = 'focus';
-          nextRound = 1;
-        }
       } else {
-        if (!currentSettings.disableShortBreaks) {
-          nextPhase = 'shortBreak';
-          nextRound = currentRound + 1;
-        } else {
-          nextPhase = 'focus';
-          nextRound = currentRound + 1;
-        }
+        // Completing a BREAK phase (short or long break):
+        // Time spent in break is NEVER saved as study session!
+        console.log(`[FOCUS] Break finished: ${currentPhase}. Transitioning to Focus without saving study time.`);
+        const nextPhase = 'focus';
+        const nextPhaseSecs = getPhaseDurationSeconds('focus', currentSettings);
+        const autoStart = Boolean(currentSettings.autoStartWork);
+        const now = Date.now();
+        const nextSessionId = generateFocusSessionId(currentRound);
+
+        setFocusSessionId(nextSessionId);
+        setFocusPhase(nextPhase);
+        setFocusState(autoStart ? 'running' : 'ready');
+        setFocusStartTime(autoStart ? now : null);
+        setFocusElapsedSeconds(0);
+        setFocusRemainingSeconds(nextPhaseSecs);
+
+        persistState({
+          focusSessionId: nextSessionId,
+          focusPhase: nextPhase,
+          focusState: autoStart ? 'running' : 'ready',
+          focusStartTime: autoStart ? now : null,
+          focusElapsedSeconds: 0,
+        });
       }
-
-      const nextPhaseSecs = getPhaseDurationSeconds(nextPhase, currentSettings);
-      const isGoingToBreak = (nextPhase === 'shortBreak' || nextPhase === 'longBreak');
-      const autoStart = isGoingToBreak
-        ? Boolean(currentSettings.autoStartBreaks)
-        : Boolean(currentSettings.autoStartWork);
-      const now = Date.now();
-
-      setFocusPhase(nextPhase);
-      setFocusRound(nextRound);
-      setFocusState(autoStart ? 'running' : 'ready');
-      setFocusStartTime(autoStart ? now : null);
-      setFocusElapsedSeconds(0);
-      setFocusRemainingSeconds(nextPhaseSecs);
-
-      persistState({
-        focusPhase: nextPhase,
-        focusRound: nextRound,
-        focusState: autoStart ? 'running' : 'ready',
-        focusStartTime: autoStart ? now : null,
-        focusElapsedSeconds: 0,
-      });
-    } else {
-      // Completing a BREAK phase (short or long break):
-      // Time spent in break is NEVER saved as study session!
-      const nextPhase = 'focus';
-      const nextPhaseSecs = getPhaseDurationSeconds('focus', currentSettings);
-      const autoStart = Boolean(currentSettings.autoStartWork);
-      const now = Date.now();
-
-      setFocusPhase(nextPhase);
-      setFocusState(autoStart ? 'running' : 'ready');
-      setFocusStartTime(autoStart ? now : null);
-      setFocusElapsedSeconds(0);
-      setFocusRemainingSeconds(nextPhaseSecs);
-
-      persistState({
-        focusPhase: nextPhase,
-        focusState: autoStart ? 'running' : 'ready',
-        focusStartTime: autoStart ? now : null,
-        focusElapsedSeconds: 0,
-      });
+    } finally {
+      isCompletingFocusRef.current = false;
     }
-  }, [getPhaseDurationSeconds, persistState, onSessionSaved]);
+  }, [getPhaseDurationSeconds, persistState, onSessionSaved, markFocusSessionCompleted]);
 
   // ── FOCUS TIMER TICKER (100ms) ─────────────────────────────────────────────
   useEffect(() => {
@@ -564,6 +654,10 @@ export function TimerProvider({ children, onSessionSaved }) {
 
         // Check if countdown completed
         if (focusState === 'running' && remaining <= 0) {
+          if (isCompletingFocusRef.current) return;
+          isCompletingFocusRef.current = true;
+          // Synchronously transition stateRef focusState away from 'running' so subsequent 100ms ticks cannot re-enter!
+          stateRef.current.focusState = 'transitioning';
           handleFocusPhaseComplete();
         }
       }
@@ -701,7 +795,7 @@ export function TimerProvider({ children, onSessionSaved }) {
 
   // ── CONTROLS: FOCUS / POMODORO ──────────────────────────────────────────────
   const startFocusTimer = useCallback((subjectToUse) => {
-    const { focusPhase, timerSubject } = stateRef.current;
+    const { focusPhase, timerSubject, focusRound, focusSessionId: currentId } = stateRef.current;
     const subject = (subjectToUse !== undefined ? subjectToUse : timerSubject).trim();
 
     // Subject is required if starting a Focus session
@@ -711,6 +805,14 @@ export function TimerProvider({ children, onSessionSaved }) {
       if (subject.length > 50) throw new Error('Subject must be 50 characters or fewer.');
     }
 
+    let activeSessionId = currentId;
+    if (focusPhase === 'focus') {
+      if (!activeSessionId || completedFocusIdsRef.current.has(activeSessionId)) {
+        activeSessionId = generateFocusSessionId(focusRound);
+        setFocusSessionId(activeSessionId);
+      }
+    }
+
     const now = Date.now();
     setFocusState('running');
     if (subject) setTimerSubject(subject);
@@ -718,13 +820,14 @@ export function TimerProvider({ children, onSessionSaved }) {
     setWarningMessage('');
 
     persistState({
+      focusSessionId: activeSessionId,
       focusState: 'running',
       timerSubject: subject || timerSubject,
       focusStartTime: now,
     });
 
     if (hasElectron) {
-      window.electronAPI.sendTimerAction('start', { subject: subject || timerSubject });
+      window.electronAPI.sendTimerAction('start', { subject: subject || timerSubject, sessionId: activeSessionId });
     }
   }, [hasElectron, persistState]);
 
@@ -770,12 +873,14 @@ export function TimerProvider({ children, onSessionSaved }) {
   }, [hasElectron, persistState]);
 
   const skipBreak = useCallback(() => {
-    const { focusPhase, settings: currentSettings } = stateRef.current;
+    const { focusPhase, focusRound, settings: currentSettings } = stateRef.current;
     if (focusPhase === 'focus') return; // Cannot skip focus, only break
 
     const nextPhase = 'focus';
     const nextPhaseSecs = getPhaseDurationSeconds('focus', currentSettings);
+    const newSessionId = generateFocusSessionId(focusRound);
 
+    setFocusSessionId(newSessionId);
     setFocusPhase(nextPhase);
     setFocusState('ready');
     setFocusStartTime(null);
@@ -784,6 +889,7 @@ export function TimerProvider({ children, onSessionSaved }) {
     setWarningMessage('');
 
     persistState({
+      focusSessionId: newSessionId,
       focusPhase: nextPhase,
       focusState: 'ready',
       focusStartTime: null,
@@ -871,12 +977,17 @@ export function TimerProvider({ children, onSessionSaved }) {
     setWarningMessage('');
 
     try {
+      const sessionIdToUse = stateRef.current.focusSessionId;
       const result = await api.saveTimerSession({
         subject,
         elapsedSeconds: focusElapsedSeconds,
         durationSeconds: focusElapsedSeconds,
+        sessionId: sessionIdToUse,
       });
       if (result.success) {
+        if (sessionIdToUse) {
+          markFocusSessionCompleted(sessionIdToUse);
+        }
         resetFocusTimerDirect();
         if (callbackOnSuccess) callbackOnSuccess(result);
         if (onSessionSaved) onSessionSaved();
@@ -890,7 +1001,7 @@ export function TimerProvider({ children, onSessionSaved }) {
       isSubmittingRef.current = false;
       setIsSubmitting(false);
     }
-  }, [submitFreeTimer, resetFocusTimerDirect, onSessionSaved]);
+  }, [submitFreeTimer, resetFocusTimerDirect, onSessionSaved, markFocusSessionCompleted]);
 
   // ── KEYBOARD SHORTCUTS ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -958,6 +1069,7 @@ export function TimerProvider({ children, onSessionSaved }) {
         durationSeconds: timerElapsedSeconds,
         displaySeconds,
         // Focus Timer
+        focusSessionId,
         focusPhase,
         focusRound,
         focusState,

@@ -26,6 +26,8 @@
  */
 
 import { app, BrowserWindow, ipcMain, Menu, Tray, Notification, dialog } from 'electron';
+import pkgUpdater from 'electron-updater';
+const autoUpdater = pkgUpdater.autoUpdater || (pkgUpdater.default && pkgUpdater.default.autoUpdater);
 import { fileURLToPath }  from 'url';
 import { dirname, join }  from 'path';
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
@@ -112,6 +114,7 @@ let sharedTimerState = {
   mode:              'free',    // 'free' | 'focus'
   state:             'ready',   // 'ready' | 'running' | 'paused'
   subject:           '',
+  sessionId:         null,      // Current focus interval unique completion ID
   startTime:         null,      // Date.now() timestamp of last start/resume
   elapsedSeconds:    0,
   durationSeconds:   0,
@@ -151,6 +154,9 @@ ipcMain.on('timer-action', (_event, { action, data }) => {
       sharedTimerState.state = 'ready';
       sharedTimerState.startTime = null;
       sharedTimerState.isPaused = false;
+      if (data && data.sessionId !== undefined) {
+        sharedTimerState.sessionId = data.sessionId;
+      }
       break;
     }
 
@@ -160,6 +166,9 @@ ipcMain.on('timer-action', (_event, { action, data }) => {
       sharedTimerState.state           = 'running';
       sharedTimerState.subject         = subject;
       sharedTimerState.startTime       = now;
+      if (data && data.sessionId !== undefined) {
+        sharedTimerState.sessionId = data.sessionId;
+      }
       if (data && typeof data.elapsedSeconds === 'number') {
         sharedTimerState.elapsedSeconds  = data.elapsedSeconds;
         sharedTimerState.durationSeconds = data.elapsedSeconds;
@@ -193,6 +202,7 @@ ipcMain.on('timer-action', (_event, { action, data }) => {
     case 'reset': {
       sharedTimerState.state           = 'ready';
       sharedTimerState.subject         = '';
+      sharedTimerState.sessionId       = null;
       sharedTimerState.startTime       = null;
       sharedTimerState.elapsedSeconds  = 0;
       sharedTimerState.durationSeconds = 0;
@@ -215,10 +225,12 @@ ipcMain.on('timer-action', (_event, { action, data }) => {
           subject:         sharedTimerState.subject,
           elapsedSeconds:  finalElapsed,
           durationSeconds: finalElapsed,
+          sessionId:       sharedTimerState.sessionId,
         });
       }
       sharedTimerState.state           = 'ready';
       sharedTimerState.subject         = '';
+      sharedTimerState.sessionId       = null;
       sharedTimerState.startTime       = null;
       sharedTimerState.elapsedSeconds  = 0;
       sharedTimerState.durationSeconds = 0;
@@ -233,6 +245,7 @@ ipcMain.on('timer-action', (_event, { action, data }) => {
         if (data.timerState        !== undefined) sharedTimerState.state = data.timerState;
         if (data.state             !== undefined) sharedTimerState.state = data.state;
         if (data.subject           !== undefined) sharedTimerState.subject = data.subject;
+        if (data.sessionId         !== undefined) sharedTimerState.sessionId = data.sessionId;
         if (data.startTime         !== undefined) sharedTimerState.startTime = data.startTime;
         if (data.phase             !== undefined) sharedTimerState.phase = data.phase;
         if (data.round             !== undefined) sharedTimerState.round = data.round;
@@ -309,6 +322,124 @@ ipcMain.on('save-widget-bounds', (_event, bounds) => {
 
 ipcMain.handle('load-widget-bounds', () => {
   return loadWidgetBounds();
+});
+
+// ---------------------------------------------------------------------------
+// Auto-Updater Integration (electron-updater)
+// ---------------------------------------------------------------------------
+let autoUpdaterInitialized = false;
+
+function initAutoUpdater() {
+  if (autoUpdaterInitialized || !autoUpdater) return;
+  autoUpdaterInitialized = true;
+
+  autoUpdater.autoDownload = false;
+  autoUpdater.autoInstallOnAppQuit = true;
+  autoUpdater.logger = console;
+
+  if (process.env.UPDATE_FEED_URL) {
+    autoUpdater.setFeedURL({
+      provider: 'generic',
+      url: process.env.UPDATE_FEED_URL,
+    });
+  }
+
+  autoUpdater.on('checking-for-update', () => {
+    console.log('[auto-updater] Checking for update...');
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('update-status', { status: 'checking' });
+    }
+  });
+
+  autoUpdater.on('update-available', (info) => {
+    console.log('[auto-updater] Update available:', info.version);
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('update-status', {
+        status: 'available',
+        version: info.version,
+        releaseNotes: info.releaseNotes,
+        releaseDate: info.releaseDate,
+      });
+    }
+  });
+
+  autoUpdater.on('update-not-available', (info) => {
+    console.log('[auto-updater] Update not available. Current version is latest.');
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('update-status', {
+        status: 'not-available',
+        version: info ? info.version : app.getVersion(),
+      });
+    }
+  });
+
+  autoUpdater.on('download-progress', (progressObj) => {
+    console.log(`[auto-updater] Download progress: ${Math.round(progressObj.percent)}%`);
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('update-progress', {
+        percent: progressObj.percent,
+        bytesPerSecond: progressObj.bytesPerSecond,
+        transferred: progressObj.transferred,
+        total: progressObj.total,
+      });
+    }
+  });
+
+  autoUpdater.on('update-downloaded', (info) => {
+    console.log('[auto-updater] Update downloaded:', info.version);
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('update-status', {
+        status: 'downloaded',
+        version: info.version,
+        releaseNotes: info.releaseNotes,
+      });
+    }
+  });
+
+  autoUpdater.on('error', (err) => {
+    console.warn('[auto-updater] Error encountered:', err ? err.message : err);
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('update-status', {
+        status: 'error',
+        error: err ? err.message : 'Update check failed',
+      });
+    }
+  });
+}
+
+ipcMain.on('check-for-updates', () => {
+  if (!autoUpdater) return;
+  initAutoUpdater();
+  autoUpdater.checkForUpdates().catch(err => {
+    console.warn('[auto-updater] Manual check error:', err.message);
+  });
+});
+
+ipcMain.on('start-update-download', () => {
+  if (!autoUpdater) return;
+  initAutoUpdater();
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('update-status', { status: 'downloading' });
+  }
+  autoUpdater.downloadUpdate().catch(err => {
+    console.warn('[auto-updater] Download error:', err.message);
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('update-status', {
+        status: 'error',
+        error: err.message,
+      });
+    }
+  });
+});
+
+ipcMain.on('restart-and-install-update', () => {
+  if (!autoUpdater) return;
+  isQuitting = true;
+  autoUpdater.quitAndInstall(false, true);
+});
+
+ipcMain.handle('get-app-version', () => {
+  return app.getVersion();
 });
 
 // ---------------------------------------------------------------------------
@@ -406,6 +537,18 @@ function createMainWindow() {
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
     buildAppMenu();
+
+    // Check for updates non-blockingly after 4 seconds (packaged or test mode)
+    setTimeout(() => {
+      if (app.isPackaged || process.env.CHECK_UPDATES_DEV === 'true' || process.env.UPDATE_FEED_URL) {
+        initAutoUpdater();
+        if (autoUpdater) {
+          autoUpdater.checkForUpdates().catch(err => {
+            console.warn('[auto-updater] Background startup update check failed:', err.message);
+          });
+        }
+      }
+    }, 4000);
   });
 
   mainWindow.on('closed', () => {

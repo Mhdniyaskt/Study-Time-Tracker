@@ -7,6 +7,7 @@ import DashboardPage from './pages/DashboardPage';
 import StatisticsPage from './pages/StatisticsPage';
 import HistoryPage from './pages/HistoryPage';
 import SettingsModal from './components/common/SettingsModal';
+import UpdateNotification from './components/common/UpdateNotification';
 import InPageWidget from './components/widget/InPageWidget';
 import api from './services/api';
 
@@ -104,6 +105,7 @@ function MainApp() {
         />
 
         <InPageWidget />
+        <UpdateNotification />
       </div>
     </TimerProvider>
   );

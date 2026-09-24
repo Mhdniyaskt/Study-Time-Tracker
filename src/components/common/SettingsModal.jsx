@@ -28,6 +28,64 @@ export default function SettingsModal({ isOpen, onClose, currentGoalHours = 2, o
   const [error, setError] = useState('');
   const [chimeTested, setChimeTested] = useState(false);
 
+  // Auto-Update State
+  const [appVersion, setAppVersion] = useState('1.0.1');
+  const [updateCheckStatus, setUpdateCheckStatus] = useState('idle'); // 'idle' | 'checking' | 'available' | 'not-available' | 'error' | 'downloading' | 'downloaded'
+  const [updateStatusMessage, setUpdateStatusMessage] = useState('');
+
+  // Fetch app version when modal opens
+  useEffect(() => {
+    if (!isOpen) return;
+    if (typeof window !== 'undefined' && window.electronAPI?.getAppVersion) {
+      window.electronAPI.getAppVersion().then((v) => {
+        if (v) setAppVersion(v);
+      }).catch(() => {});
+    }
+  }, [isOpen]);
+
+  // Listen to update status events
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.electronAPI?.onUpdateStatus) return;
+    const unsub = window.electronAPI.onUpdateStatus((data) => {
+      if (!data) return;
+      if (data.status === 'checking') {
+        setUpdateCheckStatus('checking');
+        setUpdateStatusMessage('Checking for updates...');
+      } else if (data.status === 'available') {
+        setUpdateCheckStatus('available');
+        setUpdateStatusMessage(`Update v${data.version} is available!`);
+      } else if (data.status === 'not-available') {
+        setUpdateCheckStatus('not-available');
+        setUpdateStatusMessage(`You are on the latest version (v${data.version || appVersion}).`);
+      } else if (data.status === 'downloading') {
+        setUpdateCheckStatus('downloading');
+        setUpdateStatusMessage('Downloading update...');
+      } else if (data.status === 'downloaded') {
+        setUpdateCheckStatus('downloaded');
+        setUpdateStatusMessage(`Update v${data.version} downloaded! Ready to restart.`);
+      } else if (data.status === 'error') {
+        setUpdateCheckStatus('error');
+        setUpdateStatusMessage(data.error ? `Check failed: ${data.error}` : 'Unable to check for updates right now.');
+      }
+    });
+    return () => {
+      if (typeof unsub === 'function') unsub();
+    };
+  }, [appVersion]);
+
+  const handleCheckForUpdates = () => {
+    setUpdateCheckStatus('checking');
+    setUpdateStatusMessage('Connecting to update server...');
+    if (window.electronAPI?.checkForUpdates) {
+      window.electronAPI.checkForUpdates();
+    } else {
+      setTimeout(() => {
+        setUpdateCheckStatus('not-available');
+        setUpdateStatusMessage('Web version is always up to date.');
+      }, 600);
+    }
+  };
+
   // Fetch current settings whenever modal opens
   useEffect(() => {
     if (!isOpen) return;
@@ -538,29 +596,68 @@ export default function SettingsModal({ isOpen, onClose, currentGoalHours = 2, o
 
               {/* ── TAB 5: SYSTEM / ABOUT ────────────────────────────────── */}
               {activeTab === 'system' && (
-                <div className="space-y-3 text-xs">
-                  <div className="p-3 bg-gray-50 dark:bg-gray-700/40 rounded-xl space-y-2 border border-gray-100 dark:border-gray-700">
-                    <div className="flex justify-between">
+                <div className="space-y-4 text-xs">
+                  <div className="p-3.5 bg-gray-50 dark:bg-gray-700/40 rounded-xl space-y-2.5 border border-gray-100 dark:border-gray-700">
+                    <div className="flex justify-between items-center">
                       <span className="text-gray-500 dark:text-gray-400">Application:</span>
                       <span className="font-semibold text-gray-800 dark:text-gray-200">Study Time Tracker</span>
                     </div>
-                    <div className="flex justify-between">
+                    <div className="flex justify-between items-center">
                       <span className="text-gray-500 dark:text-gray-400">Version:</span>
-                      <span className="font-semibold text-gray-800 dark:text-gray-200">2.1.0 (Focus Edition)</span>
+                      <span className="font-semibold text-gray-800 dark:text-gray-200">v{appVersion}</span>
                     </div>
-                    <div className="flex justify-between">
+                    <div className="flex justify-between items-center">
                       <span className="text-gray-500 dark:text-gray-400">Runtime:</span>
                       <span className="font-semibold text-indigo-600 dark:text-indigo-400">
-                        {hasElectron ? 'Electron 35 Desktop + Express' : 'Web Browser + Express'}
+                        {hasElectron ? 'Electron Desktop + Express' : 'Web Browser + Express'}
                       </span>
                     </div>
-                    <div className="flex justify-between">
+                    <div className="flex justify-between items-center">
                       <span className="text-gray-500 dark:text-gray-400">Database:</span>
                       <span className="font-semibold text-emerald-600 dark:text-emerald-400">MongoDB Connected</span>
                     </div>
                   </div>
 
-                  <p className="text-[11px] text-gray-400 text-center pt-2">
+                  {/* Auto-Update Section */}
+                  <div className="p-3.5 bg-indigo-50/50 dark:bg-indigo-950/20 rounded-xl border border-indigo-100 dark:border-indigo-900/40 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="font-semibold text-gray-800 dark:text-gray-200">Software Updates</h4>
+                        <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-0.5">
+                          Automatic release updates via GitHub Releases
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleCheckForUpdates}
+                        disabled={updateCheckStatus === 'checking'}
+                        className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-medium rounded-lg text-xs transition shadow-sm"
+                      >
+                        {updateCheckStatus === 'checking' ? 'Checking...' : 'Check for Updates'}
+                      </button>
+                    </div>
+
+                    {updateStatusMessage && (
+                      <div className={`p-2.5 rounded-lg text-[11px] flex items-center gap-2 ${
+                        updateCheckStatus === 'error'
+                          ? 'bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-800'
+                          : updateCheckStatus === 'available' || updateCheckStatus === 'downloaded'
+                            ? 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
+                            : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700'
+                      }`}>
+                        <span>
+                          {updateCheckStatus === 'checking' && '⏳'}
+                          {updateCheckStatus === 'available' && '🚀'}
+                          {updateCheckStatus === 'downloaded' && '🎉'}
+                          {updateCheckStatus === 'not-available' && '✅'}
+                          {updateCheckStatus === 'error' && '⚠️'}
+                        </span>
+                        <span>{updateStatusMessage}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <p className="text-[11px] text-gray-400 text-center pt-1">
                     Single source of truth timer synchronization with wall-clock drift prevention.
                   </p>
                 </div>
