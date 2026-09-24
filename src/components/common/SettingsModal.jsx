@@ -614,7 +614,7 @@ export default function SettingsModal({ isOpen, onClose, currentGoalHours = 2, o
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-gray-500 dark:text-gray-400">Database:</span>
-                      <span className="font-semibold text-emerald-600 dark:text-emerald-400">MongoDB Connected</span>
+                      <span className="font-semibold text-emerald-600 dark:text-emerald-400">Local Database (Active)</span>
                     </div>
                   </div>
 

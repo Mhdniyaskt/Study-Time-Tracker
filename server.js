@@ -1,6 +1,6 @@
 import dotenv from "dotenv";
 import express from "express";
-import mongoose from "mongoose";
+import { initDatabase, closeDatabase } from "./models/db.js";
 import { exec } from "child_process";
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
@@ -151,17 +151,8 @@ app.use((err, req, res, next) => {
 });
 
 // ---------------------------------------------------------------------------
-// MongoDB Connection & Startup
+// Embedded Local Database Initialization & Startup
 // ---------------------------------------------------------------------------
-const DEFAULT_MONGODB_URI = 'mongodb://127.0.0.1:27017/study_tracker';
-if (!process.env.MONGODB_URI) {
-  console.log("ℹ️  MONGODB_URI not set in environment - using local default");
-  console.log(`   Default: ${DEFAULT_MONGODB_URI}`);
-  console.log(`   Checked for .env file at: ${envPath}`);
-  console.log("   To use a custom database, set MONGODB_URI in .env file");
-  process.env.MONGODB_URI = DEFAULT_MONGODB_URI;
-}
-
 // Log startup information
 console.log("=".repeat(60));
 console.log("Study Time Tracker - Starting...");
@@ -175,36 +166,18 @@ if (isPackaged) {
 }
 console.log("=".repeat(60));
 
-// Handle MongoDB connection events
-mongoose.connection.on('error', (err) => {
-  console.error('MongoDB connection error:', err.message);
-  if (isDevelopment) console.error(err.stack);
-});
-
-mongoose.connection.on('disconnected', () => {
-  console.warn('MongoDB disconnected. Attempting to reconnect...');
-});
-
-mongoose.connection.on('reconnected', () => {
-  console.log('MongoDB reconnected successfully.');
-});
-
 let httpServer = null;
 
 export async function stopServer() {
   if (httpServer) {
     await new Promise((resolve) => httpServer.close(resolve));
   }
-  if (mongoose.connection.readyState !== 0) {
-    await mongoose.connection.close();
-  }
+  await closeDatabase();
 }
 
-// Connect to MongoDB, then start server
-export const serverReadyPromise = mongoose
-  .connect(process.env.MONGODB_URI)
+// Initialize embedded database, then start HTTP server
+export const serverReadyPromise = initDatabase()
   .then(() => {
-    console.log("MongoDB connected successfully");
     return new Promise((resolve, reject) => {
       httpServer = app.listen(PORT, (err) => {
         if (err) return reject(err);
@@ -224,7 +197,7 @@ export const serverReadyPromise = mongoose
     });
   })
   .catch((err) => {
-    console.error("❌ MongoDB connection failed:", err.message);
+    console.error("❌ Database initialization failed:", err.message);
     if (!isElectron) {
       process.exit(1);
     }

@@ -421,8 +421,11 @@ export async function saveTimerSession(req, res) {
       elapsedSeconds,
     });
   } catch (err) {
-    // Check for MongoDB duplicate key error on sessionId (E11000)
-    if (err.code === 11000 && req.body && (req.body.sessionId || req.body.completionId)) {
+    // Check for duplicate key error on sessionId (MongoDB E11000 or NeDB uniqueViolated)
+    const isDuplicateKey = err.code === 11000 ||
+                           err.errorType === 'uniqueViolated' ||
+                           (err.message && err.message.includes('violates the unique constraint'));
+    if (isDuplicateKey && req.body && (req.body.sessionId || req.body.completionId)) {
       const dupId = String(req.body.sessionId || req.body.completionId);
       console.log(`[FOCUS] Backend: Duplicate key race condition caught for sessionId: ${dupId}`);
       try {

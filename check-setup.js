@@ -40,22 +40,15 @@ if (fs.existsSync(envPath)) {
   const envContent = fs.readFileSync(envPath, 'utf-8');
   const envLines = envContent.split('\n').filter(line => line.trim() && !line.startsWith('#'));
   
-  // Check for MONGODB_URI
+  // Database: Embedded local datastore
+  console.log('  ✅ Database: Embedded Local Datastore (Standalone, no MongoDB required)\n');
   const mongoUri = envLines.find(line => line.startsWith('MONGODB_URI='));
   if (mongoUri) {
     const uri = mongoUri.split('=')[1].trim();
     if (uri && uri !== 'MONGODB_URI=') {
-      console.log('  ✅ MONGODB_URI is configured');
+      console.log('  ℹ️  Legacy MONGODB_URI detected (used only for initial migration if enabled)');
       console.log(`     Value: ${uri.replace(/\/\/.*@/, '//<credentials>@')}\n`);
-    } else {
-      console.log('  ❌ MONGODB_URI is empty');
-      console.log('  → Set MONGODB_URI in .env file\n');
-      hasErrors = true;
     }
-  } else {
-    console.log('  ❌ MONGODB_URI not found in .env');
-    console.log('  → Add MONGODB_URI=mongodb://localhost:27017/study_tracker to .env\n');
-    hasErrors = true;
   }
   
   // Check for PORT
@@ -102,6 +95,7 @@ const requiredFiles = [
   'electron-main.js',
   'preload.js',
   'floating-timer.html',
+  'models/db.js',
   'models/StudySession.js',
   'models/Settings.js',
   'services/studyService.js',
@@ -131,11 +125,11 @@ console.log('========================================');
 if (!hasErrors) {
   console.log('✅ Setup Check PASSED');
   console.log('========================================\n');
-  console.log('Your application is properly configured!');
+  console.log('Your standalone application is properly configured!');
   console.log('');
   console.log('Next steps:');
-  console.log('1. Ensure MongoDB is running');
-  console.log('2. Start the application: npm start');
+  console.log('1. Start desktop application: npm run electron');
+  console.log('2. Or start web server: npm start');
   console.log('3. Open browser: http://localhost:3000');
   console.log('');
 } else {

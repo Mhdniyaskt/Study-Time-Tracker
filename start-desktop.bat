@@ -3,8 +3,7 @@ echo ========================================
 echo  Study Time Tracker - Desktop Version
 echo ========================================
 echo.
-echo Starting Electron desktop application...
-echo.
-echo Note: Make sure MongoDB is running!
+echo Starting standalone Electron application...
+echo Database: Local embedded datastore
 echo.
 npm run electron

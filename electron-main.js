@@ -804,6 +804,7 @@ async function startServer() {
 
   process.env.PORT = String(actualPort);
   process.env.ELECTRON_ENV_PATH = resolveEnvPath();
+  process.env.STUDY_TRACKER_DATA_PATH = join(app.getPath('userData'), 'data');
 
   const serverUrl = `http://127.0.0.1:${actualPort}`;
   const serverModule = new URL('./server.js', import.meta.url).href;
@@ -818,7 +819,7 @@ async function startServer() {
     await waitForServer(serverUrl);
   }
 
-  console.log(`[electron-main] Express & MongoDB ready on port ${actualPort}`);
+  console.log(`[electron-main] Express & Local Database ready on port ${actualPort}`);
 }
 
 // ---------------------------------------------------------------------------
@@ -832,14 +833,10 @@ app.whenReady().then(async () => {
   } catch (err) {
     console.error('Fatal startup error:', err.message);
     await dialog.showErrorBox(
-      'Study Time Tracker – Database Connection Required',
+      'Study Time Tracker – Startup Error',
       `Could not start the Study Time Tracker.\n\n` +
       `Error: ${err.message}\n\n` +
-      `Please ensure:\n` +
-      `  1. MongoDB Community Server is installed on your computer.\n` +
-      `  2. The MongoDB service is running (e.g. run "net start MongoDB" in PowerShell).\n` +
-      `  3. Or configure a custom cloud connection in a .env file:\n` +
-      `     MONGODB_URI=mongodb://localhost:27017/study_tracker`
+      `Please verify file permissions or contact support.`
     );
     app.quit();
   }

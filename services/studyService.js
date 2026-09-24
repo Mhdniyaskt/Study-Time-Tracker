@@ -1,4 +1,3 @@
-import mongoose from "mongoose";
 import StudySession from "../models/StudySession.js";
 import Settings from "../models/Settings.js";
 
@@ -188,10 +187,12 @@ export function validateSession(subject, hours, minutes) {
 }
 
 /**
- * Validates if a string is a valid MongoDB ObjectId
+ * Validates if an ID is valid (supports both 24-hex MongoDB ObjectIds and NeDB IDs)
  */
 export function isValidObjectId(id) {
-  return mongoose.Types.ObjectId.isValid(id);
+  if (typeof id !== 'string' && typeof id !== 'number') return false;
+  const str = String(id).trim();
+  return str.length >= 8 && str.length <= 64 && /^[a-zA-Z0-9_-]+$/.test(str);
 }
 
 /**
@@ -688,71 +689,40 @@ export async function calculateHistoryData({
     mongoFilter.date = { $gte: startOfDay, $lte: endOfDay };
   }
 
-  // Count total matching sessions for pagination
-  const total = await StudySession.countDocuments(mongoFilter);
+  // Load all matching sessions for stats and pagination
+  const allFilteredSessions = await StudySession.find(mongoFilter).sort({ date: -1 });
+  const total = allFilteredSessions.length;
   const safeLimit = Math.max(1, Math.min(100, parseInt(limit, 10) || 10));
   const totalPages = Math.max(1, Math.ceil(total / safeLimit));
   const safePage = Math.min(Math.max(1, parseInt(page, 10) || 1), totalPages);
   const skip = (safePage - 1) * safeLimit;
 
-  // Query ONLY the requested page's records from MongoDB
-  const paginatedSessions = await StudySession.find(mongoFilter)
-    .sort({ date: -1 })
-    .skip(skip)
-    .limit(safeLimit)
-    .lean();
+  // Query ONLY the requested page's records for display
+  const paginatedSessions = allFilteredSessions.slice(skip, skip + safeLimit);
 
-  // Aggregate statistics for the filtered period without loading all documents into memory
-  const [aggregates] = await StudySession.aggregate([
-    { $match: mongoFilter },
-    {
-      $facet: {
-        summary: [
-          {
-            $group: {
-              _id: null,
-              totalStudyTime: { $sum: '$duration' },
-            },
-          },
-        ],
-        subjectStats: [
-          {
-            $group: {
-              _id: '$subject',
-              totalMinutes: { $sum: '$duration' },
-            },
-          },
-          { $sort: { totalMinutes: -1 } },
-        ],
-        dailyTotals: [
-          {
-            $group: {
-              _id: {
-                $dateToString: {
-                  format: '%Y-%m-%d',
-                  date: '$date',
-                  timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
-                },
-              },
-              minutes: { $sum: '$duration' },
-            },
-          },
-          { $sort: { _id: -1 } },
-        ],
-      },
-    },
-  ]);
-
-  const totalStudyTime = aggregates?.summary?.[0]?.totalStudyTime || 0;
+  // Calculate statistics for the filtered period
+  const totalStudyTime = allFilteredSessions.reduce((sum, s) => sum + s.duration, 0);
   const numberOfSessions = total;
-  const subjectStats = (aggregates?.subjectStats || []).map((s) => ({
-    subject: s._id,
-    totalMinutes: s.totalMinutes,
-  }));
-  const dailyTotals = (aggregates?.dailyTotals || []).map((d) => ({
-    date: d._id,
-    minutes: d.minutes,
-  }));
+
+  const subjectMap = {};
+  for (const session of allFilteredSessions) {
+    const key = (session.subject || '').trim();
+    if (!subjectMap[key]) subjectMap[key] = 0;
+    subjectMap[key] += session.duration;
+  }
+  const subjectStats = Object.entries(subjectMap)
+    .map(([subject, totalMinutes]) => ({ subject, totalMinutes }))
+    .sort((a, b) => b.totalMinutes - a.totalMinutes);
+
+  const dailyTotalsMap = {};
+  for (const session of allFilteredSessions) {
+    const dateStr = toLocalDateString(session.date);
+    if (!dailyTotalsMap[dateStr]) dailyTotalsMap[dateStr] = 0;
+    dailyTotalsMap[dateStr] += session.duration;
+  }
+  const dailyTotals = Object.entries(dailyTotalsMap)
+    .map(([date, minutes]) => ({ date, minutes }))
+    .sort((a, b) => b.date.localeCompare(a.date));
 
   // Group ONLY the paginated sessions for display in this page's view
   const groupsMap = {};
