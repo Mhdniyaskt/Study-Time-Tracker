@@ -1,0 +1,94 @@
+name: Release Desktop App
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build React Frontend
+        run: npm run build:react
+
+      - name: Build Electron Windows Distributables
+        run: npm run dist
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Prepare Release Artifacts
+        shell: pwsh
+        run: |
+          Write-Host "Verifying dist folder contents..."
+          Get-ChildItem dist
+
+          # Ensure hyphenated alias exists for seamless electron-updater compatibility
+          if (Test-Path "dist\Study Time Tracker Setup.exe") {
+            Copy-Item "dist\Study Time Tracker Setup.exe" "dist\Study-Time-Tracker-Setup.exe" -Force
+          }
+          if (Test-Path "dist\Study Time Tracker Setup.exe.blockmap") {
+            Copy-Item "dist\Study Time Tracker Setup.exe.blockmap" "dist\Study-Time-Tracker-Setup.exe.blockmap" -Force
+          }
+
+          Write-Host "Final release artifacts:"
+          Get-ChildItem dist\*.exe, dist\*.blockmap, dist\latest.yml | Format-Table Name, Length
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/v')
+        with:
+          name: Study Time Tracker ${{ github.ref_name }}
+          tag_name: ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+          generate_release_notes: false
+          body: |
+            # Study Time Tracker ${{ github.ref_name }}
+
+            A simple Windows desktop application for tracking study time.
+
+            ## Features
+
+            - Free Study Timer
+            - Focus / Pomodoro Mode
+            - Study History
+            - Daily & Weekly Statistics
+            - Floating Timer Widget
+            - System Tray
+            - Notifications
+            - Local offline database
+            - Automatic Updates
+
+            ## Installation
+
+            1. Download the Windows installer (`Study Time Tracker Setup.exe`).
+            2. Run the installer.
+            3. Open Study Time Tracker.
+            4. Start studying.
+
+            No MongoDB, Node.js, npm, Git, or development tools are required.
+          files: |
+            dist/Study Time Tracker Setup.exe
+            dist/Study-Time-Tracker-Setup.exe
+            dist/latest.yml
+            dist/Study Time Tracker Setup.exe.blockmap
+            dist/Study-Time-Tracker-Setup.exe.blockmap
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
